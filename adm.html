@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ADM 網狀圖 + 桿狀圖 + S曲線 | 儒鴻結構</title>
+<style>
+:root{--navy:#0b1f3a;--navy2:#13284a;--gold:#c9a14a;--gold2:#e0bf6e;
+  --bg:#f0ede6;--ink:#1c2530;--line:#d8d2c2;--red:#c00;--green:#1a6e35;--blue:#2255aa;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:"Noto Sans TC","Segoe UI",sans-serif;background:var(--bg);color:var(--ink);
+  display:flex;flex-direction:column;height:100vh;overflow:hidden;}
+#topbar{background:linear-gradient(135deg,var(--navy),var(--navy2));color:#f5f3ee;
+  padding:9px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0;
+  box-shadow:0 2px 8px rgba(0,0,0,.35);}
+#topbar h1{font-size:15px;font-weight:700;}
+#topbar small{color:var(--gold2);font-size:11px;border-left:1px solid rgba(255,255,255,.2);padding-left:11px;}
+.sp{flex:1;}
+.tbtn{padding:5px 13px;border:none;border-radius:5px;cursor:pointer;font-size:12.5px;font-weight:600;}
+.tbtn.g{background:var(--gold);color:var(--navy);}
+.tbtn.s{background:rgba(255,255,255,.13);color:#f5f3ee;border:1px solid rgba(255,255,255,.2);}
+.tbtn:hover{filter:brightness(1.12);}
+#app{display:flex;flex:1;overflow:hidden;}
+#left{width:310px;flex-shrink:0;background:#fff;border-right:1px solid var(--line);
+  overflow-y:auto;padding:13px 12px;display:flex;flex-direction:column;gap:9px;}
+#main{flex:1;overflow-y:auto;overflow-x:hidden;padding:12px;display:flex;flex-direction:column;gap:10px;}
+.sec{font-size:10.5px;font-weight:700;color:var(--navy);text-transform:uppercase;
+  letter-spacing:.06em;border-left:3px solid var(--gold);padding-left:7px;margin-top:2px;}
+label{font-size:11px;color:#666;display:block;margin-bottom:2px;}
+.inp{width:100%;padding:5px 7px;border:1px solid #ccc;border-radius:4px;font-size:12px;
+  background:#fafaf8;font-family:inherit;}
+.inp:focus{outline:1.5px solid var(--gold);}
+.row2{display:flex;gap:7px;}.row2>*{flex:1;}
+#atbl{width:100%;border-collapse:collapse;font-size:11px;}
+#atbl th{background:#ede9df;padding:4px 2px;border:1px solid #ddd;font-weight:700;color:var(--navy);text-align:center;}
+#atbl td{border:1px solid #eee;padding:1px;}
+#atbl input{border:none;background:transparent;padding:3px 2px;font-size:11px;width:100%;text-align:center;}
+#atbl input:focus{outline:1px solid var(--gold);border-radius:2px;background:#fffde7;}
+.dbtn{background:none;border:none;color:#c44;cursor:pointer;font-size:12px;padding:2px 4px;width:100%;}
+.abtn{padding:6px;background:var(--navy);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11.5px;font-weight:600;flex:1;}
+.cbtn{padding:6px;background:var(--green);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11.5px;font-weight:700;flex:1;}
+.abtn:hover,.cbtn:hover{filter:brightness(1.1);}
+#ntbl{width:100%;border-collapse:collapse;font-size:11px;}
+#ntbl th{background:#ede9df;padding:4px;border:1px solid #ddd;font-weight:700;color:var(--navy);text-align:center;}
+#ntbl td{border:1px solid #eee;padding:3px;text-align:center;}
+.cr td{color:var(--red);font-weight:700;}
+.lgd{font-size:11px;line-height:2;color:#555;background:#f7f4ee;padding:9px;border-radius:6px;border:1px solid #e0ddd5;}
+.msec{background:#fff;border-radius:9px;box-shadow:0 1px 4px rgba(0,0,0,.1);}
+.mhdr{background:var(--navy);color:#f5f3ee;font-size:12.5px;font-weight:700;
+  padding:7px 14px;border-radius:9px 9px 0 0;display:flex;align-items:center;gap:8px;}
+#cv-wrap{overflow-x:auto;overflow-y:hidden;background:#e9e5dc;border-radius:0 0 0 0;}
+#cv{display:block;cursor:default;}
+/* Progress table */
+#ptbl-outer{overflow-x:auto;padding:8px 14px 12px;}
+#ptbl{border-collapse:collapse;font-size:11px;white-space:nowrap;}
+#ptbl th,#ptbl td{border:1px solid #ddd;padding:3px 5px;text-align:center;}
+#ptbl th{background:#ede9df;font-weight:700;color:var(--navy);}
+#ptbl .lbl{background:#f5f2eb;font-weight:700;font-size:10.5px;text-align:left;padding:3px 8px;}
+#ptbl .pln{background:#eaf2ee;color:var(--green);}
+#ptbl .act{background:#fdeaea;color:var(--red);}
+#ptbl .est{background:#e8f0fc;color:var(--blue);}
+#ptbl input{border:none;background:transparent;width:48px;text-align:center;font-size:11px;}
+#ptbl input:focus{outline:1px solid #aaa;border-radius:2px;}
+/* Modal */
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;}
+.modal.show{display:flex;}
+.mbox{background:#fff;border-radius:14px;padding:26px;max-width:390px;width:90%;}
+.mbox h3{font-size:16px;font-weight:700;color:var(--navy);margin-bottom:7px;}
+.mbox p{font-size:12.5px;color:#555;margin-bottom:13px;line-height:1.7;}
+.kobtn{display:block;text-align:center;background:#ff5e5b;color:#fff;padding:10px;
+  border-radius:7px;text-decoration:none;font-weight:700;font-size:13px;margin-bottom:10px;}
+.crow{display:flex;gap:8px;margin-bottom:7px;}
+.crow input{flex:1;letter-spacing:2px;font-family:monospace;padding:7px 9px;border:1px solid #ccc;border-radius:5px;}
+.crow button{padding:7px 13px;background:var(--navy);color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:600;}
+.clnk{display:block;text-align:center;color:#aaa;cursor:pointer;font-size:12px;margin-top:5px;}
+/* Import modal */
+.ibox{background:#fff;border-radius:14px;padding:22px;max-width:520px;width:95%;}
+.ibox h3{font-size:15px;font-weight:700;color:var(--navy);margin-bottom:6px;}
+.ibox .hint{font-size:11.5px;color:#666;margin-bottom:10px;line-height:1.7;background:#f7f4ee;
+  padding:8px 10px;border-radius:6px;border-left:3px solid var(--gold);}
+.ibox textarea{width:100%;height:200px;font-family:monospace;font-size:11.5px;
+  padding:8px;border:1px solid #ccc;border-radius:6px;resize:vertical;
+  background:#fafaf8;}
+.ibox textarea:focus{outline:1.5px solid var(--gold);}
+.irow{display:flex;gap:8px;margin-top:10px;}
+.ibtn{flex:1;padding:8px;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700;}
+.ibtn.ok{background:var(--green);color:#fff;}
+.ibtn.cl{background:#eee;color:#666;}
+.ibtn:hover{filter:brightness(1.08);}
+#import-msg{font-size:11.5px;color:var(--red);min-height:14px;margin-top:5px;}
+@media print{
+  body{display:block;height:auto;overflow:visible;}
+  #app{display:block;overflow:visible;}
+  #left,.modal{display:none!important;}
+  #main{overflow:visible;padding:4px;}
+  .msec{box-shadow:none;break-inside:avoid;}
+  #cv-wrap{overflow:visible;}
+  #cv{max-width:100%;}
+  @page{size:A4 landscape;margin:6mm;}
+}
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <svg width="26" height="26" viewBox="0 0 44 44" fill="none">
+    <rect x="2" y="12" width="9" height="28" rx="1" fill="#c9a14a"/>
+    <rect x="14" y="6" width="9" height="34" rx="1" fill="#c9a14a"/>
+    <rect x="26" y="16" width="7" height="24" rx="1" fill="#c9a14a"/>
+    <rect x="33" y="22" width="7" height="18" rx="1" fill="#c9a14a"/>
+    <path d="M2 42 Q22 36 40 42" stroke="#e0bf6e" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  </svg>
+  <h1>ADM + 桿狀圖 + S 曲線</h1>
+  <small>儒鴻結構技師事務所</small>
+  <div class="sp"></div>
+  <button class="tbtn s" onclick="resetLayout()">🔀 重置排版</button>
+  <button class="tbtn g" onclick="openPro()">🖨 列印送審圖</button>
+</div>
+
+<div id="app">
+  <!-- ══ LEFT ══ -->
+  <div id="left">
+    <div>
+      <div class="sec">工程資訊</div>
+      <label>工程名稱</label>
+      <input class="inp" id="p-name" value="新社區協成里苗圃橋附近淹水改善工程" oninput="redraw()">
+      <div class="row2" style="margin-top:5px">
+        <div><label>工程編號</label><input class="inp" id="p-num" value="01-00"></div>
+        <div><label>今日日曆天</label>
+          <input class="inp" type="number" id="today-day" placeholder="e.g. 65" oninput="redraw()">
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="sec">作業清單</div>
+      <div style="font-size:10.5px;color:#888;margin-bottom:5px">
+        比重%需合計100。天數=0為虛作業。節點可拖曳。
+      </div>
+      <button class="abtn" style="width:100%;margin-bottom:7px;background:#5a7a3a"
+        onclick="openImport()">📋 貼上匯入工項</button>
+      <table id="atbl">
+        <thead><tr>
+          <th style="width:26px">從</th><th style="width:26px">到</th>
+          <th style="width:34px">天數</th><th style="width:38px">比重%</th>
+          <th>作業名稱</th><th style="width:20px"></th>
+        </tr></thead>
+        <tbody id="abody"></tbody>
+      </table>
+      <div style="display:flex;gap:6px;margin-top:7px">
+        <button class="abtn" onclick="addAct()">＋ 新增</button>
+        <button class="cbtn" onclick="calculate()">▶ 計算</button>
+      </div>
+      <div id="w-warn" style="font-size:11px;color:#c66;margin-top:4px;min-height:14px"></div>
+    </div>
+
+    <div>
+      <div class="sec">期數設定</div>
+      <label>S曲線分期數</label>
+      <input class="inp" type="number" id="periods" value="12" min="4" max="30" oninput="redraw()">
+    </div>
+
+    <div>
+      <div class="sec">節點計算結果</div>
+      <table id="ntbl">
+        <thead><tr><th>節點</th><th>ES</th><th>LS</th><th>浮時</th><th>要徑</th></tr></thead>
+        <tbody id="nbody"></tbody>
+      </table>
+    </div>
+
+    <div class="lgd">
+      <b>節點格式</b><br>
+      ┌─ <b>序號</b> ─┐<br>
+      │ ES │ LS │ 浮時=LS−ES<br>
+      └─────┘<br>
+      <span style="color:var(--red)">━━━▶</span> 要徑（浮時=0，紅）<br>
+      <span style="color:var(--blue)">━━━▶</span> 非要徑（藍）<br>
+      <span style="color:#aaa">- - -▶</span> 虛作業（天數=0）<br>
+      <span style="background:#c0004d;display:inline-block;width:20px;height:8px"></span> 要徑桿狀<br>
+      <span style="background:#2255aa66;display:inline-block;width:20px;height:8px"></span> 非要徑桿狀<br>
+      <span style="color:var(--green)">──</span> 預定 S曲線<br>
+      <span style="color:var(--red)">──</span> 實際進度<br>
+      <span style="color:var(--blue)">- -</span> 估驗進度
+    </div>
+  </div>
+
+  <!-- ══ MAIN ══ -->
+  <div id="main">
+    <!-- Combined chart -->
+    <div class="msec">
+      <div class="mhdr">
+        <span>📐 進度網狀圖 + 桿狀圖 + S 曲線</span>
+        <div class="sp"></div>
+        <span id="adm-info" style="font-size:11px;font-weight:400;color:var(--gold2)"></span>
+      </div>
+      <div id="cv-wrap"><canvas id="cv"></canvas></div>
+    </div>
+
+    <!-- Progress input -->
+    <div class="msec">
+      <div class="mhdr"><span>📋 實際 / 估驗進度輸入</span></div>
+      <div id="ptbl-outer">
+        <table id="ptbl"><tbody id="pbody"></tbody></table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Import Modal -->
+<div class="modal" id="import-modal">
+  <div class="ibox">
+    <h3>📋 貼上匯入工項</h3>
+    <div class="hint">
+      從 Excel 直接複製貼上（Tab 分隔），或用逗號分隔。<br>
+      欄位順序：<b>作業名稱　工期(天)　比重%</b>　[開始天—可省略]<br>
+      有標題列會自動跳過。匯入後節點依序自動編號，可再手動調整 ADM 依存。
+    </div>
+    <textarea id="import-ta" placeholder="整地及打除&#9;20&#9;18&#10;臨時防災設施&#9;50&#9;12&#10;土木工程&#9;60&#9;45&#10;..."></textarea>
+    <div id="import-msg"></div>
+    <div class="irow">
+      <button class="ibtn ok" onclick="doImport()">✔ 確認匯入</button>
+      <button class="ibtn cl" onclick="closeImport()">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- Ko-fi Modal -->
+<div class="modal" id="modal">
+  <div class="mbox">
+    <h3>📄 列印正式送審圖</h3>
+    <p>免費使用不限次數。確認圖表無誤後，付款取得本月兌換碼，輸入後即可列印 A4 橫式送審圖。</p>
+    <a href="https://ko-fi.com/yjchen0830" target="_blank" class="kobtn">☕ 前往 Ko-fi 付款（NT$600）</a>
+    <label style="font-size:12px;color:#555;display:block;margin-bottom:5px">輸入本月兌換碼：</label>
+    <div class="crow">
+      <input type="text" id="codein" placeholder="XXXX-XXXX" maxlength="9"
+        oninput="this.value=this.value.toUpperCase()">
+      <button onclick="verify()">驗證</button>
+    </div>
+    <div id="codemsg" style="font-size:12px;color:var(--red);min-height:15px"></div>
+    <span class="clnk" onclick="closeModal()">取消</span>
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════════════════════════════
+   LAYOUT CONSTANTS
+════════════════════════════════════════════════════════ */
+var ML    = 145;   // left margin (label area)
+var MR    = 25;    // right margin
+var R     = 30;    // node radius
+var ADM_CY= 200;   // critical-path Y
+var VOFF  = 130;   // branch vertical offset
+var XSTEP = 205;   // min node spacing
+var GRH   = 22;    // gantt row height
+var SC_H  = 155;   // s-curve height (excl. time axis)
+var TIME_H= 36;    // time axis height
+var GAP   = 14;    // section gap
+
+/* ════════════════════════════════════════════════════════
+   STATE
+════════════════════════════════════════════════════════ */
+var SECRET='jrh_structural_adm';
+var acts=[
+  {f:1,t:2,d:5, w:2, n:'假設工程'},
+  {f:2,t:3,d:20,w:18,n:'整地及打除'},
+  {f:2,t:4,d:50,w:12,n:'臨時防災設施'},
+  {f:3,t:4,d:0, w:0, n:'虛作業'},
+  {f:4,t:5,d:60,w:45,n:'土木工程'},
+  {f:5,t:6,d:5, w:8, n:'道路工程'},
+  {f:6,t:7,d:0, w:0, n:'虛作業'},
+  {f:5,t:7,d:8, w:15,n:'雜項工程'},
+];
+var nm={};
+var _chain=[];
+var _totalDur=1;
+var dragN=null;
+var actualData=[];
+var estimData=[];
+
+/* ════════════════════════════════════════════════════════
+   MONTHLY CODE
+════════════════════════════════════════════════════════ */
+function getCode(){
+  var d=new Date(),k=SECRET+d.getFullYear()+String(d.getMonth()+1).padStart(2,'0');
+  var h=0;for(var i=0;i<k.length;i++){h=Math.imul(31,h)+k.charCodeAt(i)|0;}
+  h=Math.abs(h);var ch='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',o='';
+  for(var j=0;j<8;j++){o+=ch[h%ch.length];h=Math.floor(h/ch.length)||Math.imul(31,h+j+1);}
+  return o.slice(0,4)+'-'+o.slice(4,8);
+}
+
+/* ════════════════════════════════════════════════════════
+   ACTIVITY TABLE
+════════════════════════════════════════════════════════ */
+function escH(s){return(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;');}
+function renderActs(){
+  var tb=document.getElementById('abody');tb.innerHTML='';
+  acts.forEach(function(a,i){
+    var tr=document.createElement('tr');
+    tr.innerHTML=
+      '<td><input type="number" value="'+a.f+'" min="1" onchange="acts['+i+'].f=+this.value"></td>'+
+      '<td><input type="number" value="'+a.t+'" min="1" onchange="acts['+i+'].t=+this.value"></td>'+
+      '<td><input type="number" value="'+a.d+'" min="0" onchange="acts['+i+'].d=+this.value"></td>'+
+      '<td><input type="number" value="'+a.w+'" min="0" max="100" step="0.5" onchange="acts['+i+'].w=+this.value"></td>'+
+      '<td><input type="text" value="'+escH(a.n)+'" onchange="acts['+i+'].n=this.value"></td>'+
+      '<td><button class="dbtn" onclick="delAct('+i+')">✕</button></td>';
+    tb.appendChild(tr);
+  });
+  checkW();
+}
+function addAct(){acts.push({f:1,t:2,d:0,w:0,n:'虛作業'});renderActs();}
+function delAct(i){acts.splice(i,1);renderActs();calculate();}
+function checkW(){
+  var s=acts.reduce(function(a,b){return a+(+b.w||0);},0);
+  document.getElementById('w-warn').textContent=
+    Math.abs(s-100)>0.1?'⚠ 比重合計 '+s.toFixed(1)+'% (需100%)':'✔ 比重合計 100%';
+}
+
+/* ════════════════════════════════════════════════════════
+   CPM
+════════════════════════════════════════════════════════ */
+function calculate(){
+  var ids=new Set();acts.forEach(function(a){ids.add(+a.f);ids.add(+a.t);});
+  var prev={};Object.values(nm).forEach(function(n){prev[n.id]={x:n.x,y:n.y,fx:n._fixed};});
+  nm={};
+  ids.forEach(function(id){
+    var p=prev[id]||{};
+    nm[id]={id:+id,ES:0,LS:Infinity,float:0,x:p.x||0,y:p.y||0,_crit:false,_fixed:p.fx||false};
+  });
+  var chg=true,it=0;
+  while(chg&&it++<600){chg=false;
+    acts.forEach(function(a){
+      if(!nm[a.f]||!nm[a.t])return;
+      var v=nm[a.f].ES+a.d;if(v>nm[a.t].ES){nm[a.t].ES=v;chg=true;}
+    });}
+  var endId=+Object.keys(nm).reduce(function(a,b){return nm[a].ES>=nm[b].ES?a:b;});
+  nm[endId].LS=nm[endId].ES;
+  chg=true;it=0;
+  while(chg&&it++<600){chg=false;
+    acts.forEach(function(a){
+      if(!nm[a.f]||!nm[a.t]||nm[a.t].LS===Infinity)return;
+      var v=nm[a.t].LS-a.d;if(v<nm[a.f].LS){nm[a.f].LS=v;chg=true;}
+    });}
+  ids.forEach(function(id){nm[id].float=nm[id].LS-nm[id].ES;});
+  acts.forEach(function(a){
+    if(!nm[a.f]||!nm[a.t]){a.float=0;a.crit=false;return;}
+    a.float=nm[a.t].LS-nm[a.f].ES-a.d;
+    a.crit=(a.float===0&&nm[a.f].float===0&&nm[a.t].float===0);
+  });
+
+  var chain=findCritChain();
+  _chain=chain;
+  _totalDur=nm[chain[chain.length-1]].ES||1;
+  autoLayout(chain);
+  renderNodeTable();
+  checkW();
+  renderProgressTable();
+  redraw();
+}
+
+function findCritChain(){
+  var ks=Object.keys(nm).map(Number);
+  var s=ks.reduce(function(a,b){return nm[a].ES<=nm[b].ES?a:b;});
+  var e=ks.reduce(function(a,b){return nm[a].ES>=nm[b].ES?a:b;});
+  var ch=[s],cur=s,vis=new Set([s]);
+  while(cur!==e){
+    var nx=acts.filter(function(a){return+a.f===cur&&a.crit&&!vis.has(+a.t);});
+    if(!nx.length)break;nx.sort(function(a,b){return+a.t-+b.t;});
+    cur=+nx[0].t;vis.add(cur);ch.push(cur);
+  }
+  return ch;
+}
+
+/* ════════════════════════════════════════════════════════
+   LAYOUT
+════════════════════════════════════════════════════════ */
+function autoLayout(chain){
+  var critSet=new Set(chain);
+  var n=chain.length;
+  var W=Math.max(XSTEP*(n+1), n*XSTEP+ML+MR);
+  var spacing=Math.max(XSTEP,Math.round((W-ML-MR)/(n-1||1)));
+
+  chain.forEach(function(id,i){
+    if(!nm[id]._fixed){nm[id].x=ML+i*spacing;nm[id].y=ADM_CY;}
+    nm[id]._crit=true;
+  });
+
+  var tog=true;
+  Object.values(nm).filter(function(n){return!n._crit;}).forEach(function(n){
+    if(n._fixed)return;
+    var px=bkt(n.id,critSet,'pred',chain);
+    var sx=bkt(n.id,critSet,'succ',chain);
+    n.x=Math.round((px+sx)/2);
+    n.y=tog?ADM_CY-VOFF:ADM_CY+VOFF;
+    tog=!tog;
+  });
+
+  document.getElementById('adm-info').textContent=
+    '要徑 '+chain.join('→')+'　工期 '+_totalDur+'天';
+}
+
+function bkt(nid,critSet,dir,chain){
+  var q=[+nid],vis=new Set([+nid]);
+  while(q.length){var c=q.shift();
+    var edges=dir==='pred'?acts.filter(function(a){return+a.t===c;})
+                          :acts.filter(function(a){return+a.f===c;});
+    for(var i=0;i<edges.length;i++){
+      var o=dir==='pred'?+edges[i].f:+edges[i].t;
+      if(critSet.has(o))return nm[o].x;
+      if(!vis.has(o)){vis.add(o);q.push(o);}
+    }
+  }
+  return dir==='pred'?(nm[chain[0]]?nm[chain[0]].x:ML)
+    :(nm[chain[chain.length-1]]?nm[chain[chain.length-1]].x:ML+_chain.length*XSTEP);
+}
+
+function resetLayout(){
+  Object.values(nm).forEach(function(n){n.x=0;n.y=0;n._fixed=false;n._crit=false;});
+  autoLayout(_chain);redraw();
+}
+
+/* ════════════════════════════════════════════════════════
+   NODE TABLE
+════════════════════════════════════════════════════════ */
+function renderNodeTable(){
+  var tb=document.getElementById('nbody');tb.innerHTML='';
+  Object.values(nm).sort(function(a,b){return a.id-b.id;}).forEach(function(n){
+    var tr=document.createElement('tr');if(n.float===0)tr.className='cr';
+    tr.innerHTML='<td>'+n.id+'</td><td>'+n.ES+'</td><td>'+n.LS+'</td>'+
+      '<td>'+n.float+'</td><td>'+(n.float===0?'★':'')+'</td>';
+    tb.appendChild(tr);
+  });
+}
+
+/* ════════════════════════════════════════════════════════
+   TIME → X (piecewise linear through critical nodes)
+════════════════════════════════════════════════════════ */
+function timeToX(t){
+  var c=_chain;if(!c.length)return ML;
+  if(t<=nm[c[0]].ES)return nm[c[0]].x;
+  if(t>=nm[c[c.length-1]].ES)return nm[c[c.length-1]].x;
+  for(var i=0;i<c.length-1;i++){
+    var t0=nm[c[i]].ES,t1=nm[c[i+1]].ES;
+    if(t>=t0&&t<=t1)
+      return nm[c[i]].x+(t-t0)/(t1-t0)*(nm[c[i+1]].x-nm[c[i]].x);
+  }
+  return nm[c[c.length-1]].x;
+}
+
+/* ════════════════════════════════════════════════════════
+   S-CURVE DATA
+════════════════════════════════════════════════════════ */
+function calcPlanned(){
+  var P=Math.max(4,Math.min(30,+document.getElementById('periods').value||12));
+  var pLen=_totalDur/P;
+  var per=new Array(P).fill(0);
+  acts.forEach(function(a){
+    if(!nm[a.f]||!nm[a.t]||!a.w||!a.d)return;
+    var wPD=a.w/a.d,s=nm[a.f].ES;
+    for(var d=0;d<a.d;d++){
+      var p=Math.min(Math.floor((s+d)/pLen),P-1);per[p]+=wPD;
+    }
+  });
+  var data=[0],labs=['0'],cum=0;
+  for(var i=0;i<P;i++){cum+=per[i];
+    data.push(+Math.min(cum,100).toFixed(2));
+    labs.push(Math.round((i+1)*pLen)+'天');}
+  return{data:data,labs:labs,P:P,pLen:pLen};
+}
+
+/* ════════════════════════════════════════════════════════
+   PROGRESS TABLE
+════════════════════════════════════════════════════════ */
+function renderProgressTable(){
+  var pd=calcPlanned();
+  while(actualData.length<pd.P+1)actualData.push(null);
+  while(estimData.length<pd.P+1) estimData.push(null);
+  var tb=document.getElementById('pbody');tb.innerHTML='';
+  function row(html){var tr=document.createElement('tr');tr.innerHTML=html;tb.appendChild(tr);}
+  var h='<th class="lbl">期別</th>';
+  pd.labs.forEach(function(l,i){h+='<th>'+(i===0?'0':i)+'</th>';});row(h);
+  var d='<td class="lbl">工期（天）</td>';
+  pd.labs.forEach(function(l){d+='<td style="font-size:10px">'+l+'</td>';});row(d);
+  var p='<td class="lbl">預定進度（%）</td>';
+  pd.data.forEach(function(v){p+='<td class="pln">'+v+'</td>';});row(p);
+  var a='<td class="lbl">實際進度（%）</td>';
+  pd.data.forEach(function(v,i){
+    a+='<td class="act"><input type="number" min="0" max="100" step="0.1" '+
+      'value="'+(actualData[i]!=null?actualData[i]:'')+'" onchange="setA('+i+',this.value)"></td>';
+  });row(a);
+  var e='<td class="lbl">估驗進度（%）</td>';
+  pd.data.forEach(function(v,i){
+    e+='<td class="est"><input type="number" min="0" max="100" step="0.1" '+
+      'value="'+(estimData[i]!=null?estimData[i]:'')+'" onchange="setE('+i+',this.value)"></td>';
+  });row(e);
+}
+function setA(i,v){actualData[i]=v===''?null:+v;redraw();}
+function setE(i,v){estimData[i] =v===''?null:+v;redraw();}
+
+/* ════════════════════════════════════════════════════════
+   CANVAS DRAWING — MAIN
+════════════════════════════════════════════════════════ */
+function redraw(){
+  var cv=document.getElementById('cv');
+  var ctx=cv.getContext('2d');
+
+  /* Determine gantt acts */
+  var gActs=acts.filter(function(a){return a.d>0&&a.n&&a.n!=='虛作業'&&nm[a.f]&&nm[a.t];});
+  gActs.sort(function(a,b){return nm[a.f].ES-nm[b.f].ES;});
+
+  /* Compute canvas width */
+  var W=100;
+  Object.values(nm).forEach(function(n){W=Math.max(W,n.x+R+MR+60);});
+  W=Math.max(W,800);
+
+  /* Section Y positions */
+  var admMinY=ADM_CY-VOFF-R-10,admMaxY=ADM_CY+VOFF+R+20;
+  var admTop=Math.max(20,-admMinY+20);           // shifts everything down if branches go too high
+  var admBot=admTop+(admMaxY-admMinY);
+  var gTop=admBot+GAP;
+  var gBot=gTop+(gActs.length>0?gActs.length*GRH+28:28);
+  var scTop=gBot+GAP;
+  var scBot=scTop+SC_H;
+  var tTop=scBot;
+  var H=tTop+TIME_H+10;
+
+  cv.width=W;cv.height=H;
+
+  /* Background */
+  ctx.fillStyle='#e9e5dc';ctx.fillRect(0,0,W,H);
+
+  /* Shared Y-shift for ADM nodes */
+  var yBase=admTop-admMinY;  // how much to shift ADM section
+
+  /* Draw sections */
+  drawAdm(ctx,W,yBase);
+  drawGantt(ctx,W,gActs,gTop,gBot);
+  drawSCurve(ctx,W,scTop,scBot);
+  drawTimeAxis(ctx,W,tTop);
+  drawTodayLine(ctx,W,admTop,scBot);
+
+  /* Watermark */
+  ctx.save();ctx.fillStyle='rgba(0,0,0,.06)';ctx.font='11px sans-serif';
+  ctx.fillText(document.getElementById('p-name').value||'工程名稱',ML+4,H-8);ctx.restore();
+}
+
+/* ════════════════════════════════════════════════════════
+   DRAW: ADM network
+════════════════════════════════════════════════════════ */
+function drawAdm(ctx,W,yBase){
+  /* Header label */
+  ctx.save();ctx.fillStyle='rgba(11,31,58,0.85)';
+  ctx.fillRect(0,yBase-2,W,18);
+  ctx.font='bold 11px sans-serif';ctx.fillStyle='#e0bf6e';
+  ctx.textAlign='left';ctx.textBaseline='middle';
+  ctx.fillText('▶ ADM 進度網狀圖',6,yBase+7);ctx.restore();
+
+  /* Compute pair offsets */
+  var pc={};
+  acts.forEach(function(a){
+    var k=Math.min(+a.f,+a.t)+'-'+Math.max(+a.f,+a.t);
+    if(!pc[k])pc[k]=0;
+    var idx=pc[k];
+    a._off=(idx===0?0:(idx%2===0?1:-1)*Math.ceil(idx/2)*20);
+    pc[k]++;
+  });
+
+  acts.forEach(function(a){drawArrow(ctx,a,yBase);});
+  Object.values(nm).forEach(function(n){drawNode(ctx,n,yBase);});
+}
+
+function drawNode(ctx,n,yBase){
+  var x=n.x,y=n.y+yBase,r=R;
+  var isCrit=n.float===0;
+  var col=isCrit?'#c00':'#2255aa';
+  var bg=isCrit?'#fff5f5':'#f0f4ff';
+  ctx.save();ctx.shadowBlur=5;ctx.shadowColor='rgba(0,0,0,.2)';
+  ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle=bg;ctx.fill();ctx.restore();
+  ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);
+  ctx.strokeStyle=col;ctx.lineWidth=isCrit?2.8:2;ctx.stroke();
+  ctx.beginPath();ctx.moveTo(x-r,y);ctx.lineTo(x+r,y);
+  ctx.strokeStyle=col;ctx.lineWidth=1;ctx.stroke();
+  ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y+r);ctx.stroke();
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillStyle=col;ctx.font='bold '+Math.round(r*0.52)+'px sans-serif';
+  ctx.fillText(n.id,x,y-r*0.28);
+  ctx.font=Math.round(r*0.36)+'px sans-serif';ctx.fillStyle='#333';
+  ctx.fillText(n.ES,x-r*0.3,y+r*0.5);ctx.fillText(n.LS,x+r*0.3,y+r*0.5);
+}
+
+function routePath(src,dst,off,yBase){
+  var sx=src.x,sy=src.y+yBase,dx=dst.x,dy=dst.y+yBase;
+  var sc=src._crit,dc=dst._crit;
+  if(sc&&dc){
+    if(Math.abs(sy-dy)<2) return [{x:sx+R,y:sy+off},{x:dx-R,y:dy+off}];
+    var mx=(sx+dx)/2;
+    return [{x:sx+R,y:sy},{x:mx+off,y:sy},{x:mx+off,y:dy},{x:dx-R,y:dy}];
+  }
+  if(sc&&!dc){
+    var sgn=dy>sy?1:-1,vx=sx+off;
+    return [{x:vx,y:sy+sgn*R},{x:vx,y:dy},{x:dx>sx?dx-R:dx+R,y:dy}];
+  }
+  if(!sc&&dc){
+    var vx=dx+off,entry=sy>dy?dy+R:dy-R;
+    return [{x:sx+(dx>sx?R:-R),y:sy},{x:vx,y:sy},{x:vx,y:entry}];
+  }
+  var mx=(sx+dx)/2;
+  return [{x:sx+(dx>sx?R:-R),y:sy},{x:mx,y:sy},{x:mx,y:dy},{x:dx+(dx>sx?-R:R),y:dy}];
+}
+
+function drawArrow(ctx,a,yBase){
+  if(!nm[a.f]||!nm[a.t])return;
+  var src=nm[a.f],dst=nm[a.t];
+  var isDummy=a.d===0;
+  var col=isDummy?'#999':(a.crit?'#c00':'#2255aa');
+  var lw=a.crit?2.6:1.8;
+  var pts=routePath(src,dst,a._off||0,yBase);
+  ctx.save();ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.lineJoin='miter';
+  if(isDummy)ctx.setLineDash([7,5]);
+  ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);
+  for(var i=1;i<pts.length;i++)ctx.lineTo(pts[i].x,pts[i].y);
+  ctx.stroke();ctx.setLineDash([]);
+  var last=pts[pts.length-1],prev=pts[pts.length-2];
+  var ang=Math.atan2(last.y-prev.y,last.x-prev.x);
+  var L=10,aw=Math.PI/6;
+  ctx.beginPath();ctx.moveTo(last.x,last.y);
+  ctx.lineTo(last.x-L*Math.cos(ang-aw),last.y-L*Math.sin(ang-aw));
+  ctx.lineTo(last.x-L*Math.cos(ang+aw),last.y-L*Math.sin(ang+aw));
+  ctx.closePath();ctx.fillStyle=col;ctx.fill();
+  /* Label on longest segment */
+  var bl=0,bs=null;
+  for(var i=0;i<pts.length-1;i++){
+    var ddx=pts[i+1].x-pts[i].x,ddy=pts[i+1].y-pts[i].y,len=Math.hypot(ddx,ddy);
+    if(len>bl){bl=len;bs={mx:(pts[i].x+pts[i+1].x)/2,my:(pts[i].y+pts[i+1].y)/2,
+      nx:ddx/len,ny:ddy/len};}
+  }
+  if(bs){
+    var px=-bs.ny*15,py=bs.nx*15;
+    function lbl(t,x,y){
+      ctx.font='10px sans-serif';
+      var tw=ctx.measureText(t).width;
+      ctx.fillStyle='rgba(233,229,220,.9)';ctx.fillRect(x-tw/2-2,y-6,tw+4,12);
+      ctx.fillStyle=col;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(t,x,y);
+    }
+    if(a.n&&a.n!=='虛作業')lbl(a.n,bs.mx+px,bs.my+py);
+    if(a.d>0){
+      var ds=a.d+'天'+(a.crit?'':(a.float>0?' 浮'+a.float:''));
+      lbl(ds,bs.mx-px,bs.my-py);
+    }
+  }
+  ctx.restore();
+}
+
+/* ════════════════════════════════════════════════════════
+   DRAW: Gantt bars (桿狀圖)
+════════════════════════════════════════════════════════ */
+function drawGantt(ctx,W,gActs,gTop,gBot){
+  /* Background */
+  ctx.fillStyle='rgba(255,255,255,0.55)';ctx.fillRect(ML,gTop,W-ML-MR,gBot-gTop);
+  ctx.strokeStyle='#bbb';ctx.lineWidth=0.5;
+  ctx.strokeRect(ML,gTop,W-ML-MR,gBot-gTop);
+
+  /* Section header */
+  ctx.save();ctx.fillStyle='rgba(11,31,58,0.85)';ctx.fillRect(0,gTop,W,18);
+  ctx.font='bold 11px sans-serif';ctx.fillStyle='#e0bf6e';
+  ctx.textAlign='left';ctx.textBaseline='middle';
+  ctx.fillText('▶ 施工進度桿狀圖',6,gTop+9);ctx.restore();
+
+  /* Vertical gridlines at each critical node */
+  _chain.forEach(function(id){
+    var x=nm[id].x;
+    ctx.beginPath();ctx.moveTo(x,gTop+18);ctx.lineTo(x,gBot);
+    ctx.strokeStyle='rgba(0,0,0,0.12)';ctx.lineWidth=0.8;ctx.setLineDash([3,3]);
+    ctx.stroke();ctx.setLineDash([]);
+  });
+
+  gActs.forEach(function(a,row){
+    var y=gTop+18+row*GRH+3;
+    var x0=timeToX(nm[a.f].ES);
+    var x1=timeToX(nm[a.f].ES+a.d);
+    var bw=x1-x0;
+    /* Activity name */
+    ctx.save();ctx.font='10.5px sans-serif';ctx.fillStyle='#333';
+    ctx.textAlign='right';ctx.textBaseline='middle';
+    var nm_=a.n;if(ctx.measureText(nm_).width>ML-8)nm_=nm_.slice(0,6)+'…';
+    ctx.fillText(nm_,ML-4,y+GRH/2-3);ctx.restore();
+    /* Bar */
+    var isCrit=a.crit;
+    ctx.fillStyle=isCrit?'rgba(192,0,0,0.78)':'rgba(34,85,170,0.55)';
+    ctx.fillRect(x0,y,Math.max(bw,4),GRH-6);
+    ctx.strokeStyle=isCrit?'#a00':'#1a3d8a';
+    ctx.lineWidth=1;ctx.strokeRect(x0,y,Math.max(bw,4),GRH-6);
+    /* Duration label inside bar */
+    if(bw>35){
+      ctx.save();ctx.font='9.5px sans-serif';ctx.fillStyle='#fff';
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(a.d+'天',x0+bw/2,y+GRH/2-3);ctx.restore();
+    }
+  });
+}
+
+/* ════════════════════════════════════════════════════════
+   DRAW: S-curve
+════════════════════════════════════════════════════════ */
+function scY(pct,scTop,scH){
+  return scTop+8+(1-pct/100)*(scH-16);
+}
+
+function drawSCurve(ctx,W,scTop,scBot){
+  var scH=scBot-scTop;
+  /* Background */
+  ctx.fillStyle='rgba(255,255,255,0.6)';ctx.fillRect(ML,scTop,W-ML-MR,scH);
+  ctx.strokeStyle='#bbb';ctx.lineWidth=0.5;
+  ctx.strokeRect(ML,scTop,W-ML-MR,scH);
+
+  /* Section header */
+  ctx.save();ctx.fillStyle='rgba(11,31,58,0.85)';ctx.fillRect(0,scTop,W,18);
+  ctx.font='bold 11px sans-serif';ctx.fillStyle='#e0bf6e';
+  ctx.textAlign='left';ctx.textBaseline='middle';
+  ctx.fillText('▶ S 曲線',6,scTop+9);ctx.restore();
+
+  /* Y gridlines */
+  [0,20,40,60,80,100].forEach(function(p){
+    var y=scY(p,scTop,scH);
+    ctx.beginPath();ctx.moveTo(ML,y);ctx.lineTo(W-MR,y);
+    ctx.strokeStyle=p===0||p===100?'rgba(0,0,0,.25)':'rgba(0,0,0,.1)';
+    ctx.lineWidth=p===0||p===100?1:0.7;ctx.setLineDash(p%20===0&&p!==0&&p!==100?[3,4]:[]);
+    ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='#555';ctx.font='9.5px sans-serif';ctx.textAlign='right';
+    ctx.textBaseline='middle';ctx.fillText(p+'%',ML-3,y);
+  });
+
+  /* Y label */
+  ctx.save();ctx.fillStyle='#666';ctx.font='10px sans-serif';
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.translate(14,scTop+scH/2);ctx.rotate(-Math.PI/2);
+  ctx.fillText('累計進度',0,0);ctx.restore();
+
+  /* X gridlines at critical nodes */
+  _chain.forEach(function(id){
+    var x=nm[id].x;
+    ctx.beginPath();ctx.moveTo(x,scTop+18);ctx.lineTo(x,scBot);
+    ctx.strokeStyle='rgba(0,0,0,0.1)';ctx.lineWidth=0.7;ctx.setLineDash([3,3]);
+    ctx.stroke();ctx.setLineDash([]);
+  });
+
+  /* Draw curve helper */
+  function drawLine(data,pLen,col,dash){
+    var pts=[];
+    data.forEach(function(v,i){
+      if(v===null||v===undefined)return;
+      pts.push({x:timeToX(i*pLen),y:scY(v,scTop,scH)});
+    });
+    if(pts.length<2)return;
+    ctx.save();ctx.strokeStyle=col;ctx.lineWidth=2;ctx.lineJoin='round';
+    if(dash)ctx.setLineDash([7,4]);
+    ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);
+    for(var i=1;i<pts.length;i++){
+      /* Smooth bezier between points */
+      var cpx=(pts[i-1].x+pts[i].x)/2;
+      ctx.bezierCurveTo(cpx,pts[i-1].y,cpx,pts[i].y,pts[i].x,pts[i].y);
+    }
+    ctx.stroke();ctx.setLineDash([]);
+    /* Dots */
+    ctx.fillStyle=col;
+    pts.forEach(function(p){
+      ctx.beginPath();ctx.arc(p.x,p.y,3,0,Math.PI*2);ctx.fill();
+    });
+    ctx.restore();
+  }
+
+  /* Fill under planned */
+  var pd=calcPlanned();
+  var fillPts=pd.data.map(function(v,i){return{x:timeToX(i*pd.pLen),y:scY(v,scTop,scH)};});
+  if(fillPts.length>=2){
+    ctx.save();
+    ctx.beginPath();ctx.moveTo(fillPts[0].x,fillPts[0].y);
+    for(var i=1;i<fillPts.length;i++){
+      var cpx=(fillPts[i-1].x+fillPts[i].x)/2;
+      ctx.bezierCurveTo(cpx,fillPts[i-1].y,cpx,fillPts[i].y,fillPts[i].x,fillPts[i].y);
+    }
+    var lastX=fillPts[fillPts.length-1].x;
+    ctx.lineTo(lastX,scBot-2);ctx.lineTo(fillPts[0].x,scBot-2);ctx.closePath();
+    ctx.fillStyle='rgba(26,110,53,0.08)';ctx.fill();ctx.restore();
+  }
+
+  drawLine(pd.data,pd.pLen,'#1a6e35',false);
+  drawLine(actualData,pd.pLen,'#c00',false);
+  drawLine(estimData, pd.pLen,'#2255aa',true);
+
+  /* Legend */
+  var lx=W-MR-10,ly=scTop+26;
+  function leg(col,dash,txt){
+    ctx.save();ctx.strokeStyle=col;ctx.lineWidth=2;
+    if(dash)ctx.setLineDash([5,3]);
+    ctx.beginPath();ctx.moveTo(lx-45,ly);ctx.lineTo(lx-28,ly);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='#333';ctx.font='9.5px sans-serif';ctx.textAlign='right';
+    ctx.textBaseline='middle';ctx.fillText(txt,lx,ly);ctx.restore();
+    ly+=14;
+  }
+  leg('#1a6e35',false,'預定進度');
+  leg('#c00',false,'實際進度');
+  leg('#2255aa',true,'估驗進度');
+}
+
+/* ════════════════════════════════════════════════════════
+   DRAW: Time axis
+════════════════════════════════════════════════════════ */
+function drawTimeAxis(ctx,W,tTop){
+  ctx.strokeStyle='#555';ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(ML,tTop);ctx.lineTo(W-MR,tTop);ctx.stroke();
+
+  /* Ticks + labels at each critical node */
+  _chain.forEach(function(id){
+    var x=nm[id].x,t=nm[id].ES;
+    ctx.beginPath();ctx.moveTo(x,tTop);ctx.lineTo(x,tTop+6);
+    ctx.strokeStyle='#555';ctx.lineWidth=1.5;ctx.stroke();
+    ctx.fillStyle='#444';ctx.font='10px sans-serif';
+    ctx.textAlign='center';ctx.textBaseline='top';
+    ctx.fillText(t+'天',x,tTop+8);
+  });
+
+  /* Center label */
+  ctx.fillStyle='#666';ctx.font='10px sans-serif';ctx.textAlign='center';
+  ctx.fillText('工期（天）',ML+(W-ML-MR)/2,tTop+20);
+}
+
+/* ════════════════════════════════════════════════════════
+   DRAW: Today vertical line
+════════════════════════════════════════════════════════ */
+function drawTodayLine(ctx,W,admTop,scBot){
+  var td=+document.getElementById('today-day').value||null;
+  if(!td)return;
+  var x=timeToX(td);
+  ctx.save();ctx.strokeStyle='rgba(180,0,0,0.65)';ctx.lineWidth=2;ctx.setLineDash([6,4]);
+  ctx.beginPath();ctx.moveTo(x,admTop);ctx.lineTo(x,scBot);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='#c00';ctx.font='bold 10px sans-serif';
+  ctx.textAlign='center';ctx.textBaseline='bottom';
+  ctx.fillText('今日 '+td+'天',x,admTop+16);
+  ctx.restore();
+}
+
+/* ════════════════════════════════════════════════════════
+   DRAG & DROP
+════════════════════════════════════════════════════════ */
+var cvEl=document.getElementById('cv');
+function cvPos(e){var r=cvEl.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top};}
+function nearNode(x,y){
+  /* Node Y on canvas = node.y + yBase, but we approximate by checking all nodes */
+  return Object.values(nm).find(function(n){
+    return Math.hypot(n.x-x,n.y+200-y)<=R+8||Math.hypot(n.x-x,n.y-y)<=R+8;
+  });
+}
+cvEl.addEventListener('mousedown',function(e){
+  var p=cvPos(e);
+  var n=Object.values(nm).find(function(n){return Math.hypot(n.x-p.x,p.y-(n.y+170))<=R+8;});
+  if(n)dragN={n:n,ox:p.x-n.x,oy:p.y-(n.y+170)};
+});
+cvEl.addEventListener('mousemove',function(e){
+  var p=cvPos(e);
+  if(dragN){dragN.n.x=p.x-dragN.ox;dragN.n.y=(p.y-dragN.oy)-170;
+    dragN.n._fixed=true;dragN.n._crit=(dragN.n.float===0);redraw();cvEl.style.cursor='grabbing';}
+  else cvEl.style.cursor='default';
+});
+cvEl.addEventListener('mouseup',function(){dragN=null;cvEl.style.cursor='default';});
+cvEl.addEventListener('mouseleave',function(){dragN=null;});
+
+/* ════════════════════════════════════════════════════════
+   PASTE IMPORT
+════════════════════════════════════════════════════════ */
+function openImport(){
+  document.getElementById('import-ta').value='';
+  document.getElementById('import-msg').textContent='';
+  document.getElementById('import-modal').classList.add('show');
+  setTimeout(function(){document.getElementById('import-ta').focus();},80);
+}
+function closeImport(){document.getElementById('import-modal').classList.remove('show');}
+
+function doImport(){
+  var raw=document.getElementById('import-ta').value.trim();
+  if(!raw){document.getElementById('import-msg').textContent='請先貼上資料。';return;}
+
+  var lines=raw.split(/\r?\n/).filter(function(l){return l.trim();});
+  var parsed=[];
+  var errors=[];
+
+  lines.forEach(function(line,i){
+    /* Split by tab first, then comma */
+    var cols=line.indexOf('\t')>=0 ? line.split('\t') : line.split(',');
+    cols=cols.map(function(c){return c.trim().replace(/^["']|["']$/g,'');});
+
+    /* Skip header row: if col[1] (工期) is not numeric */
+    var d=parseFloat(cols[1]);
+    if(isNaN(d)){
+      /* Might be header — skip silently if first line, warn otherwise */
+      if(i>0) errors.push('第'+(i+1)+'列：工期欄非數字，已跳過');
+      return;
+    }
+
+    var name=(cols[0]||'工項'+(parsed.length+1)).slice(0,20);
+    var w=parseFloat(cols[2]);
+    if(isNaN(w)){errors.push('第'+(i+1)+'列比重非數字，設為0');w=0;}
+    parsed.push({n:name, d:Math.round(d), w:+w.toFixed(3)});
+  });
+
+  if(!parsed.length){
+    document.getElementById('import-msg').textContent='無法解析任何工項，請確認格式。';
+    return;
+  }
+
+  /* Check weight sum — warn but allow */
+  var wsum=parsed.reduce(function(a,b){return a+b.w;},0);
+  var wok=Math.abs(wsum-100)<1;
+
+  /* Build sequential ADM nodes: 1→2→3→...→n+1 */
+  acts=parsed.map(function(p,i){
+    return{f:i+1, t:i+2, d:p.d, w:p.w, n:p.n};
+  });
+
+  /* Reset node positions */
+  nm={};_chain=[];actualData=[];estimData=[];
+
+  var msg='✔ 匯入 '+parsed.length+' 筆工項。';
+  if(!wok) msg+=' ⚠ 比重合計 '+wsum.toFixed(1)+'%（需調整至100%）。';
+  if(errors.length) msg+=' '+errors.join('；');
+  document.getElementById('import-msg').style.color=wok?'var(--green)':'var(--red)';
+  document.getElementById('import-msg').textContent=msg;
+
+  renderActs();
+  calculate();
+
+  /* Close after short delay so user can read message */
+  setTimeout(closeImport, 1400);
+}
+
+/* ════════════════════════════════════════════════════════
+   PRO GATE
+════════════════════════════════════════════════════════ */
+function openPro(){
+  if(window.location.search.indexOf('admin=1')>=0){alert('本月兌換碼：'+getCode());return;}
+  document.getElementById('modal').classList.add('show');
+}
+function closeModal(){document.getElementById('modal').classList.remove('show');}
+function verify(){
+  if(document.getElementById('codein').value.trim().toUpperCase()===getCode()){closeModal();window.print();}
+  else document.getElementById('codemsg').textContent='兌換碼錯誤，請確認後再試。';
+}
+
+/* ════════════════════════════════════════════════════════
+   INIT
+════════════════════════════════════════════════════════ */
+renderActs();
+calculate();
+</script>
+</body>
+</html>
