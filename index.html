@@ -163,6 +163,7 @@ label{font-size:11px;color:#666;display:block;margin-bottom:2px;}
   }
 }
 </style>
+<script src="email-gate.js"></script>
 </head>
 <body>
 
@@ -1028,8 +1029,7 @@ function doImport(){
    PRO GATE
 ════════════════════════════════════════════════════════ */
 function openPro(){
-  if(window.location.search.indexOf('admin=1')>=0){alert('本月兌換碼：'+getCode());return;}
-  document.getElementById('modal').classList.add('show');
+  JRH.checkEmail(function(){ window.print(); });
 }
 function closeModal(){document.getElementById('modal').classList.remove('show');}
 function verify(){
