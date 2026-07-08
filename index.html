@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ADM 網狀圖 + 桿狀圖 + S曲線 | 儒鴻結構</title>
+<title>ADM 網狀圖 + 桿狀圖 + S曲線（優化版）| 儒鴻結構</title>
 <style>
 :root{--navy:#0b1f3a;--navy2:#13284a;--gold:#c9a14a;--gold2:#e0bf6e;
   --bg:#f0ede6;--ink:#1c2530;--line:#d8d2c2;--red:#c00;--green:#1a6e35;--blue:#2255aa;}
@@ -13,54 +13,54 @@ body{font-family:"Noto Sans TC","Segoe UI",sans-serif;background:var(--bg);color
 #topbar{background:linear-gradient(135deg,var(--navy),var(--navy2));color:#f5f3ee;
   padding:9px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0;
   box-shadow:0 2px 8px rgba(0,0,0,.35);}
-#topbar h1{font-size:15px;font-weight:700;}
-#topbar small{color:var(--gold2);font-size:11px;border-left:1px solid rgba(255,255,255,.2);padding-left:11px;}
+#topbar h1{font-size:16px;font-weight:700;}
+#topbar small{color:var(--gold2);font-size:12px;border-left:1px solid rgba(255,255,255,.2);padding-left:11px;}
 .sp{flex:1;}
-.tbtn{padding:5px 13px;border:none;border-radius:5px;cursor:pointer;font-size:12.5px;font-weight:600;}
+.tbtn{padding:6px 14px;border:none;border-radius:5px;cursor:pointer;font-size:13px;font-weight:600;}
 .tbtn.g{background:var(--gold);color:var(--navy);}
 .tbtn.s{background:rgba(255,255,255,.13);color:#f5f3ee;border:1px solid rgba(255,255,255,.2);}
 .tbtn:hover{filter:brightness(1.12);}
 #app{display:flex;flex:1;overflow:hidden;}
-#left{width:340px;flex-shrink:0;background:#fff;border-right:1px solid var(--line);
-  overflow-y:auto;padding:13px 12px;display:flex;flex-direction:column;gap:9px;}
-#main{flex:1;overflow-y:auto;overflow-x:hidden;padding:12px;display:flex;flex-direction:column;gap:10px;}
-.sec{font-size:10.5px;font-weight:700;color:var(--navy);text-transform:uppercase;
-  letter-spacing:.06em;border-left:3px solid var(--gold);padding-left:7px;margin-top:2px;}
-label{font-size:11px;color:#666;display:block;margin-bottom:2px;}
-.inp{width:100%;padding:5px 7px;border:1px solid #ccc;border-radius:4px;font-size:12px;
+#left{width:380px;flex-shrink:0;background:#fff;border-right:1px solid var(--line);
+  overflow-y:auto;padding:16px 14px;display:flex;flex-direction:column;gap:14px;}
+#main{flex:1;overflow-y:auto;overflow-x:hidden;padding:14px;display:flex;flex-direction:column;gap:14px;}
+.sec{font-size:12px;font-weight:700;color:var(--navy);text-transform:uppercase;
+  letter-spacing:.06em;border-left:3px solid var(--gold);padding-left:8px;margin-top:2px;margin-bottom:6px;}
+label{font-size:12px;color:#666;display:block;margin-bottom:3px;}
+.inp{width:100%;padding:7px 9px;border:1px solid #ccc;border-radius:4px;font-size:13px;
   background:#fafaf8;font-family:inherit;}
 .inp:focus{outline:1.5px solid var(--gold);}
 .row2{display:flex;gap:7px;}.row2>*{flex:1;}
-#atbl{width:100%;border-collapse:collapse;font-size:11px;}
-#atbl th{background:#ede9df;padding:4px 3px;border:1px solid #ddd;font-weight:700;color:var(--navy);text-align:center;}
-#atbl td{border:1px solid #eee;padding:1px;}
-#atbl input{border:none;background:transparent;padding:3px 3px;font-size:11.5px;width:100%;text-align:center;}
+#atbl{width:100%;border-collapse:collapse;font-size:12px;}
+#atbl th{background:#ede9df;padding:6px 4px;border:1px solid #ddd;font-weight:700;color:var(--navy);text-align:center;}
+#atbl td{border:1px solid #eee;padding:2px;}
+#atbl input{border:none;background:transparent;padding:5px 3px;font-size:12.5px;width:100%;text-align:center;}
 #atbl input:focus{outline:1px solid var(--gold);border-radius:2px;background:#fffde7;}
 #atbl input:focus{outline:1px solid var(--gold);border-radius:2px;background:#fffde7;}
 .dbtn{background:none;border:none;color:#c44;cursor:pointer;font-size:12px;padding:2px 4px;width:100%;}
-.abtn{padding:6px;background:var(--navy);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11.5px;font-weight:600;flex:1;}
-.cbtn{padding:6px;background:var(--green);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11.5px;font-weight:700;flex:1;}
+.abtn{padding:8px;background:var(--navy);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12.5px;font-weight:600;flex:1;}
+.cbtn{padding:8px;background:var(--green);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12.5px;font-weight:700;flex:1;}
 .abtn:hover,.cbtn:hover{filter:brightness(1.1);}
-#ntbl{width:100%;border-collapse:collapse;font-size:12px;}
-#ntbl th{background:#ede9df;padding:5px 4px;border:1px solid #ddd;font-weight:700;color:var(--navy);text-align:center;}
-#ntbl td{border:1px solid #eee;padding:4px;text-align:center;min-width:38px;}
+#ntbl{width:100%;border-collapse:collapse;font-size:13px;}
+#ntbl th{background:#ede9df;padding:6px 5px;border:1px solid #ddd;font-weight:700;color:var(--navy);text-align:center;}
+#ntbl td{border:1px solid #eee;padding:6px;text-align:center;min-width:38px;}
 .cr td{color:var(--red);font-weight:700;}
-.lgd{font-size:11px;line-height:2;color:#555;background:#f7f4ee;padding:9px;border-radius:6px;border:1px solid #e0ddd5;}
+.lgd{font-size:12px;line-height:2.2;color:#555;background:#f7f4ee;padding:12px;border-radius:6px;border:1px solid #e0ddd5;}
 .msec{background:#fff;border-radius:9px;box-shadow:0 1px 4px rgba(0,0,0,.1);}
-.mhdr{background:var(--navy);color:#f5f3ee;font-size:12.5px;font-weight:700;
-  padding:7px 14px;border-radius:9px 9px 0 0;display:flex;align-items:center;gap:8px;}
+.mhdr{background:var(--navy);color:#f5f3ee;font-size:13.5px;font-weight:700;
+  padding:9px 14px;border-radius:9px 9px 0 0;display:flex;align-items:center;gap:8px;}
 #cv-wrap{overflow-x:auto;overflow-y:hidden;background:#e9e5dc;border-radius:0 0 0 0;}
 #cv{display:block;cursor:default;}
 /* Progress table */
 #ptbl-outer{overflow-x:auto;padding:8px 14px 12px;}
-#ptbl{border-collapse:collapse;font-size:11px;white-space:nowrap;}
-#ptbl th,#ptbl td{border:1px solid #ddd;padding:3px 5px;text-align:center;}
+#ptbl{border-collapse:collapse;font-size:12px;white-space:nowrap;}
+#ptbl th,#ptbl td{border:1px solid #ddd;padding:5px 7px;text-align:center;}
 #ptbl th{background:#ede9df;font-weight:700;color:var(--navy);}
-#ptbl .lbl{background:#f5f2eb;font-weight:700;font-size:10.5px;text-align:left;padding:3px 8px;}
+#ptbl .lbl{background:#f5f2eb;font-weight:700;font-size:11.5px;text-align:left;padding:5px 10px;}
 #ptbl .pln{background:#eaf2ee;color:var(--green);}
 #ptbl .act{background:#fdeaea;color:var(--red);}
 #ptbl .est{background:#e8f0fc;color:var(--blue);}
-#ptbl input{border:none;background:transparent;width:48px;text-align:center;font-size:11px;}
+#ptbl input{border:none;background:transparent;width:56px;text-align:center;font-size:12px;}
 #ptbl input:focus{outline:1px solid #aaa;border-radius:2px;}
 /* Modal */
 .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;}
@@ -93,21 +93,21 @@ label{font-size:11px;color:#666;display:block;margin-bottom:2px;}
 #print-hdr{display:none;}
 #print-ftr{display:none;}
 @media print{
-  @page{size:A4 landscape;margin:7mm 6mm 8mm;}
+  @page{size:A3 landscape;margin:8mm 7mm 9mm;}
   body{display:block;height:auto;overflow:visible;background:#fff;}
   #app{display:block;overflow:visible;}
   #left,.modal,#topbar{display:none!important;}
   #main{overflow:visible;padding:0;gap:4px;}
   .msec{box-shadow:none;border-radius:0;break-inside:avoid;}
   .mhdr{display:none;}  /* 列印頭已提供標題，不重複 */
-  #cv-wrap{overflow:visible;background:#fff;}
-  /* Scale canvas to fit A4 landscape width */
-  #cv{
-    max-width:100%;
-    width:100% !important;
-    height:auto !important;
-    display:block;
-  }
+  #cv-wrap{overflow:visible;background:#fff;text-align:center;}
+  /* Canvas is explicitly sized by JS (beforeprint) to fit one A3 page
+     together with the print header — do not force width:100% here. */
+  #cv{display:inline-block;}
+  #chart-sec{display:none!important;} /* replaced at print time by 3 per-diagram pages */
+  .print-diagram-page{page-break-after:always;break-after:page;break-inside:avoid;}
+  .print-diagram-page .pdp-hdr{margin-bottom:5px;}
+  .print-diagram-page canvas{display:block;margin:0 auto;}
   #ptbl-outer{padding:4px 6px 6px;}
   #ptbl{font-size:9.5px;}
   #ptbl th,#ptbl td{padding:2px 4px;}
@@ -118,42 +118,48 @@ label{font-size:11px;color:#666;display:block;margin-bottom:2px;}
     margin-bottom:5px;
     font-family:"Noto Sans TC","Segoe UI",sans-serif;
   }
-  #print-hdr .ph-top{
+  #print-hdr, .pdp-hdr{
+    border:1.5px solid #333;
+    margin-bottom:5px;
+    font-family:"Noto Sans TC","Segoe UI",sans-serif;
+  }
+  #print-hdr{display:none!important;} /* replaced per-page by .pdp-hdr clones */
+  #print-hdr .ph-top, .pdp-hdr .ph-top{
     display:flex;
     border-bottom:1px solid #333;
   }
-  #print-hdr .ph-title{
+  #print-hdr .ph-title, .pdp-hdr .ph-title{
     flex:1;text-align:center;
     font-size:15px;font-weight:900;
     padding:5px 4px 3px;
     letter-spacing:0.1em;
     border-right:1px solid #333;
   }
-  #print-hdr .ph-sub{
+  #print-hdr .ph-sub, .pdp-hdr .ph-sub{
     font-size:11px;font-weight:700;
     text-align:center;padding:2px 4px;
     letter-spacing:0.05em;
   }
-  #print-hdr .ph-info{
+  #print-hdr .ph-info, .pdp-hdr .ph-info{
     display:flex;flex-direction:column;
     justify-content:center;padding:4px 10px;
     font-size:10.5px;min-width:320px;
     gap:2px;
   }
-  #print-hdr .ph-info span{display:block;}
-  #print-hdr .ph-stamps{
+  #print-hdr .ph-info span, .pdp-hdr .ph-info span{display:block;}
+  #print-hdr .ph-stamps, .pdp-hdr .ph-stamps{
     display:flex;border-left:1px solid #333;
   }
-  #print-hdr .stamp-box{
+  #print-hdr .stamp-box, .pdp-hdr .stamp-box{
     width:62px;border-left:1px solid #333;
     display:flex;flex-direction:column;
   }
-  #print-hdr .stamp-box:first-child{border-left:none;}
-  #print-hdr .stamp-lbl{
+  #print-hdr .stamp-box:first-child, .pdp-hdr .stamp-box:first-child{border-left:none;}
+  #print-hdr .stamp-lbl, .pdp-hdr .stamp-lbl{
     font-size:9px;text-align:center;
     border-bottom:1px solid #333;padding:2px;
   }
-  #print-hdr .stamp-area{flex:1;min-height:36px;}
+  #print-hdr .stamp-area, .pdp-hdr .stamp-area{flex:1;min-height:36px;}
   /* Print footer */
   #print-ftr{
     display:flex;border:1px solid #ccc;
@@ -201,7 +207,7 @@ label{font-size:11px;color:#666;display:block;margin-bottom:2px;}
 
     <div>
       <div class="sec">作業清單</div>
-      <div style="font-size:10.5px;color:#888;margin-bottom:5px">
+      <div style="font-size:11.5px;line-height:1.7;color:#888;margin-bottom:6px">
         比重%需合計100。天數=0為虛作業。節點可拖曳。
       </div>
       <button class="abtn" style="width:100%;margin-bottom:7px;background:#5a7a3a"
@@ -280,11 +286,11 @@ label{font-size:11px;color:#666;display:block;margin-bottom:2px;}
     </div>
 
     <!-- Combined chart -->
-    <div class="msec">
+    <div class="msec" id="chart-sec">
       <div class="mhdr">
         <span>📐 進度網狀圖 + 桿狀圖 + S 曲線</span>
         <div class="sp"></div>
-        <span id="adm-info" style="font-size:11px;font-weight:400;color:var(--gold2)"></span>
+        <span id="adm-info" style="font-size:12px;font-weight:400;color:var(--gold2)"></span>
       </div>
       <div id="cv-wrap"><canvas id="cv"></canvas></div>
     </div>
@@ -338,16 +344,19 @@ label{font-size:11px;color:#666;display:block;margin-bottom:2px;}
 /* ════════════════════════════════════════════════════════
    LAYOUT CONSTANTS
 ════════════════════════════════════════════════════════ */
-var ML    = 145;   // left margin (label area)
-var MR    = 25;    // right margin
-var R     = 30;    // node radius
+var ML    = 175;   // left margin (label area)
+var MR    = 56;    // right margin
+var R     = 36;    // node radius
 var ADM_CY= 200;   // critical-path Y
-var VOFF  = 130;   // branch vertical offset
-var XSTEP = 205;   // min node spacing
-var GRH   = 22;    // gantt row height
-var SC_H  = 155;   // s-curve height (excl. time axis)
-var TIME_H= 36;    // time axis height
-var GAP   = 14;    // section gap
+var VOFF  = 155;   // branch vertical offset
+var XSTEP = 235;   // min node spacing
+var GRH   = 30;    // gantt row height
+var SC_H  = 215;   // s-curve height (excl. time axis)
+var TIME_H= 44;    // time axis height
+var GAP   = 36;    // section gap
+var PRINT_ENLARGE = 2.3; // how much bigger circles/text render at print time vs. the raw horizontal-compression scale (keeps them legible without overlapping compressed node spacing)
+var PRINT_SS = 1;  // supersample factor used by the current print render pass (1 on screen)
+var PRINT_TEXT_SCALE = 0; // device-space text scale used by the print pass (0 = screen mode)
 
 /* ════════════════════════════════════════════════════════
    STATE
@@ -469,11 +478,21 @@ function findCritChain(){
 function autoLayout(chain){
   var critSet=new Set(chain);
   var n=chain.length;
-  var W=Math.max(XSTEP*(n+1), n*XSTEP+ML+MR);
-  var spacing=Math.max(XSTEP,Math.round((W-ML-MR)/(n-1||1)));
+  var totalDur=_totalDur||1;
+  var minGap=XSTEP; // minimum legible px between adjacent critical nodes
+  /* Find the smallest positive day-gap between consecutive critical nodes,
+     so short activities still get a readable minimum width on an
+     otherwise linear (equal-time) day axis. */
+  var minDayGap=Infinity;
+  for(var i=0;i<chain.length-1;i++){
+    var g=nm[chain[i+1]].ES-nm[chain[i]].ES;
+    if(g>0&&g<minDayGap)minDayGap=g;
+  }
+  if(!isFinite(minDayGap)||minDayGap<=0)minDayGap=1;
+  var pxPerDay=Math.max(minGap/minDayGap,(n*XSTEP)/totalDur);
 
   chain.forEach(function(id,i){
-    if(!nm[id]._fixed){nm[id].x=ML+i*spacing;nm[id].y=ADM_CY;}
+    if(!nm[id]._fixed){nm[id].x=Math.round(ML+nm[id].ES*pxPerDay);nm[id].y=ADM_CY;}
     nm[id]._crit=true;
   });
 
@@ -542,6 +561,51 @@ function timeToX(t){
 /* ════════════════════════════════════════════════════════
    S-CURVE DATA
 ════════════════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════════
+   Smooth Catmull-Rom → Bezier path (continuous tangents, no kinks)
+════════════════════════════════════════════════════════ */
+function smoothPath(ctx,pts){
+  if(pts.length<2)return;
+  ctx.moveTo(pts[0].x,pts[0].y);
+  if(pts.length===2){ ctx.lineTo(pts[1].x,pts[1].y); return; }
+  for(var i=0;i<pts.length-1;i++){
+    var p0=pts[i-1]||pts[i];
+    var p1=pts[i];
+    var p2=pts[i+1];
+    var p3=pts[i+2]||p2;
+    var c1x=p1.x+(p2.x-p0.x)/6, c1y=p1.y+(p2.y-p0.y)/6;
+    var c2x=p2.x-(p3.x-p1.x)/6, c2y=p2.y-(p3.y-p1.y)/6;
+    ctx.bezierCurveTo(c1x,c1y,c2x,c2y,p2.x,p2.y);
+  }
+}
+
+/* Stroking a curved path under a non-uniform (width≠height) transform makes
+   the line look thicker/thinner depending on local slope — the classic
+   "wobbly line weight" artifact. Fix: when the ambient transform is
+   anisotropic, project the points to device space ourselves, draw with an
+   identity transform and a fixed device-pixel line width so thickness stays
+   constant along the whole curve; on screen (isotropic) draw normally. */
+function strokeCurveNoDistort(ctx,pts,lineWidth,dash){
+  var t=ctx.getTransform();
+  var sx=Math.hypot(t.a,t.b), sy=Math.hypot(t.c,t.d);
+  if(Math.abs(sx-sy)>1e-3){
+    var dpts=pts.map(function(p){return {x:t.a*p.x+t.c*p.y+t.e,y:t.b*p.x+t.d*p.y+t.f};});
+    ctx.save();
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.lineWidth=lineWidth*PRINT_SS;
+    if(dash)ctx.setLineDash(dash.map(function(d){return d*PRINT_SS;}));
+    ctx.beginPath();smoothPath(ctx,dpts);
+    ctx.stroke();
+    ctx.restore();
+  }else{
+    ctx.lineWidth=lineWidth;
+    if(dash)ctx.setLineDash(dash);
+    ctx.beginPath();smoothPath(ctx,pts);
+    ctx.stroke();
+    if(dash)ctx.setLineDash([]);
+  }
+}
+
 function calcPlanned(){
   var P=Math.max(4,Math.min(30,+document.getElementById('periods').value||12));
   var pLen=_totalDur/P;
@@ -606,12 +670,12 @@ function redraw(){
   W=Math.max(W,800);
 
   /* Section Y positions */
-  var admMinY=ADM_CY-VOFF-R-10,admMaxY=ADM_CY+VOFF+R+20;
+  var admMinY=ADM_CY-VOFF-R-36,admMaxY=ADM_CY+VOFF+R+40;
   var admTop=Math.max(20,-admMinY+20);           // shifts everything down if branches go too high
   var admBot=admTop+(admMaxY-admMinY);
-  var gTop=admBot+GAP;
-  var gBot=gTop+(gActs.length>0?gActs.length*GRH+28:28);
-  var scTop=gBot+GAP;
+  var gTop=admBot+GAP+16;
+  var gBot=gTop+(gActs.length>0?gActs.length*GRH+36:36);
+  var scTop=gBot+GAP+16;
   var scBot=scTop+SC_H;
   var tTop=scBot;
   var H=tTop+TIME_H+10;
@@ -622,30 +686,63 @@ function redraw(){
   ctx.fillStyle='#e9e5dc';ctx.fillRect(0,0,W,H);
 
   /* Shared Y-shift for ADM nodes */
-  var yBase=admTop-admMinY;  // how much to shift ADM section
+  var yBase=admTop-admMinY;  window._yBase=yBase; // how much to shift ADM section
 
   /* Draw sections */
-  drawAdm(ctx,W,yBase);
+  drawAdm(ctx,W,yBase,admTop,admBot);
+  drawMiniAxis(ctx,W,admBot+8);
   drawGantt(ctx,W,gActs,gTop,gBot);
+  drawMiniAxis(ctx,W,gBot+8);
   drawSCurve(ctx,W,scTop,scBot);
   drawTimeAxis(ctx,W,tTop);
   drawTodayLine(ctx,W,admTop,scBot);
 
   /* Watermark */
-  ctx.save();ctx.fillStyle='rgba(0,0,0,.06)';ctx.font='11px sans-serif';
+  ctx.save();ctx.fillStyle='rgba(0,0,0,.06)';ctx.font='13px sans-serif';
   ctx.fillText(document.getElementById('p-name').value||'工程名稱',ML+4,H-8);ctx.restore();
+
+  /* Expose section y-bounds so print mode can crop each chart onto its own A3 page */
+  window._sectionBounds={W:W,H:H,adm0:0,adm1:gTop,gantt0:gTop,gantt1:scTop,sc0:scTop,sc1:H,
+    yBase:yBase,admTop:admTop,admBot:admBot,gTop:gTop,gBot:gBot,scTop:scTop,scBot:scBot,tTop:tTop,gActs:gActs};
 }
 
 /* ════════════════════════════════════════════════════════
    DRAW: ADM network
 ════════════════════════════════════════════════════════ */
-function drawAdm(ctx,W,yBase){
+function drawAdm(ctx,W,yBase,admTop,admBot){
   /* Header label */
   ctx.save();ctx.fillStyle='rgba(11,31,58,0.85)';
-  ctx.fillRect(0,yBase-2,W,18);
-  ctx.font='bold 11px sans-serif';ctx.fillStyle='#e0bf6e';
+  ctx.fillRect(0,yBase-2,W,24);
+  ctx.font='bold 12.5px sans-serif';ctx.fillStyle='#e0bf6e';
   ctx.textAlign='left';ctx.textBaseline='middle';
-  ctx.fillText('▶ ADM 進度網狀圖',6,yBase+7);ctx.restore();
+  ctx.fillText('▶ ADM 進度網狀圖',8,yBase+10);ctx.restore();
+
+  /* Right-side percentage axis (secondary), for S-curve overlay — drawn first so nodes/arrows stay on top */
+  var pTop=admTop+24+10,pBot=admBot-6;
+  function aY(pct){ return pTop+(1-pct/100)*(pBot-pTop); }
+  ctx.save();
+  [0,20,40,60,80,100].forEach(function(p){
+    var y=aY(p);
+    ctx.beginPath();ctx.moveTo(ML,y);ctx.lineTo(W-MR,y);
+    ctx.strokeStyle=p===0||p===100?'rgba(26,110,53,.22)':'rgba(26,110,53,.1)';
+    ctx.lineWidth=p===0||p===100?1:0.7;
+    ctx.stroke();
+    ctx.fillStyle='#1a6e35';ctx.font='13px sans-serif';ctx.textAlign='right';
+    ctx.textBaseline='middle';ctx.fillText(p+'%',W-4,y);
+  });
+  ctx.restore();
+
+  /* Planned S-curve, drawn behind the network so nodes/arrows remain legible */
+  var pd=calcPlanned();
+  var pts=[];
+  pd.data.forEach(function(v,i){ pts.push({x:timeToX(i*pd.pLen),y:aY(v)}); });
+  if(pts.length>=2){
+    ctx.save();ctx.strokeStyle='rgba(26,110,53,0.55)';ctx.lineJoin='round';
+    strokeCurveNoDistort(ctx,pts,2.2);
+    ctx.fillStyle='rgba(26,110,53,0.55)';
+    pts.forEach(function(p){ drawDot(ctx,p.x,p.y,2.4); });
+    ctx.restore();
+  }
 
   /* Compute pair offsets */
   var pc={};
@@ -666,6 +763,23 @@ function drawNode(ctx,n,yBase){
   var isCrit=n.float===0;
   var col=isCrit?'#c00':'#2255aa';
   var bg=isCrit?'#fff5f5':'#f0f4ff';
+
+  /* Under print mode the ambient transform is non-uniform (width≠height
+     stretch) so a plain arc() would render as an oval. Detect that and
+     switch to a local, truly-isotropic transform centred on the node so
+     the circle (and the ES/LS numbers inside it) stay perfectly round and
+     proportionally sized instead of distorted. */
+  var t=ctx.getTransform();
+  var sx=Math.hypot(t.a,t.b), sy=Math.hypot(t.c,t.d);
+  var aniso=Math.abs(sx-sy)>1e-3;
+  if(aniso){
+    var dx=t.a*x+t.c*y+t.e, dy=t.b*x+t.d*y+t.f;
+    var u=Math.min(sx,sy)*PRINT_ENLARGE;
+    ctx.save();
+    ctx.setTransform(u,0,0,u,dx,dy);
+    x=0;y=0;
+  }
+
   ctx.save();ctx.shadowBlur=5;ctx.shadowColor='rgba(0,0,0,.2)';
   ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle=bg;ctx.fill();ctx.restore();
   ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);
@@ -674,10 +788,28 @@ function drawNode(ctx,n,yBase){
   ctx.strokeStyle=col;ctx.lineWidth=1;ctx.stroke();
   ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y+r);ctx.stroke();
   ctx.textAlign='center';ctx.textBaseline='middle';
-  ctx.fillStyle=col;ctx.font='bold '+Math.round(r*0.52)+'px sans-serif';
+  ctx.fillStyle=col;ctx.font='bold '+Math.round(r*0.58)+'px sans-serif';
   ctx.fillText(n.id,x,y-r*0.28);
-  ctx.font=Math.round(r*0.36)+'px sans-serif';ctx.fillStyle='#333';
+  ctx.font=Math.round(r*0.42)+'px sans-serif';ctx.fillStyle='#333';
   ctx.fillText(n.ES,x-r*0.3,y+r*0.5);ctx.fillText(n.LS,x+r*0.3,y+r*0.5);
+
+  if(aniso)ctx.restore();
+}
+
+/* Small round data-point markers on curves — same isotropic correction as
+   drawNode, kept lightweight since these are only a few px radius. */
+function drawDot(ctx,x,y,r){
+  var t=ctx.getTransform();
+  var sx=Math.hypot(t.a,t.b), sy=Math.hypot(t.c,t.d);
+  if(Math.abs(sx-sy)>1e-3){
+    var dx=t.a*x+t.c*y+t.e, dy=t.b*x+t.d*y+t.f;
+    var u=Math.min(sx,sy)*PRINT_ENLARGE;
+    ctx.save();ctx.setTransform(u,0,0,u,dx,dy);
+    ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+  }else{
+    ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();
+  }
 }
 
 function routePath(src,dst,off,yBase){
@@ -714,7 +846,7 @@ function drawArrow(ctx,a,yBase){
   ctx.stroke();ctx.setLineDash([]);
   var last=pts[pts.length-1],prev=pts[pts.length-2];
   var ang=Math.atan2(last.y-prev.y,last.x-prev.x);
-  var L=10,aw=Math.PI/6;
+  var L=12,aw=Math.PI/6;
   ctx.beginPath();ctx.moveTo(last.x,last.y);
   ctx.lineTo(last.x-L*Math.cos(ang-aw),last.y-L*Math.sin(ang-aw));
   ctx.lineTo(last.x-L*Math.cos(ang+aw),last.y-L*Math.sin(ang+aw));
@@ -727,12 +859,29 @@ function drawArrow(ctx,a,yBase){
       nx:ddx/len,ny:ddy/len};}
   }
   if(bs){
-    var px=-bs.ny*15,py=bs.nx*15;
+    var px=-bs.ny*24,py=bs.nx*24;
     function lbl(t,x,y){
-      ctx.font='10px sans-serif';
-      var tw=ctx.measureText(t).width;
-      ctx.fillStyle='rgba(233,229,220,.9)';ctx.fillRect(x-tw/2-2,y-6,tw+4,12);
-      ctx.fillStyle=col;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(t,x,y);
+      ctx.font='13px sans-serif';
+      var tm=ctx.getTransform();
+      var tsx=Math.hypot(tm.a,tm.b), tsy=Math.hypot(tm.c,tm.d);
+      if(Math.abs(tsx-tsy)>1e-3&&PRINT_TEXT_SCALE>0){
+        /* print mode: draw the highlight pill and the text together in a
+           local isotropic frame so the pill hugs the (boosted) text instead
+           of being sized/stretched by the page's non-uniform transform. */
+        var dx=tm.a*x+tm.c*y+tm.e, dy=tm.b*x+tm.d*y+tm.f;
+        var u=PRINT_TEXT_SCALE;
+        ctx.save();
+        ctx.setTransform(u,0,0,u,dx,dy);
+        var tw=CanvasRenderingContext2D.prototype.measureText.call(ctx,t).width;
+        ctx.fillStyle='rgba(233,229,220,.94)';ctx.fillRect(-tw/2-6,-10,tw+12,20);
+        ctx.fillStyle=col;ctx.textAlign='center';ctx.textBaseline='middle';
+        CanvasRenderingContext2D.prototype.fillText.call(ctx,t,0,0);
+        ctx.restore();
+      }else{
+        var tw2=ctx.measureText(t).width;
+        ctx.fillStyle='rgba(233,229,220,.94)';ctx.fillRect(x-tw2/2-6,y-10,tw2+12,20);
+        ctx.fillStyle=col;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(t,x,y);
+      }
     }
     if(a.n&&a.n!=='虛作業')lbl(a.n,bs.mx+px,bs.my+py);
     if(a.d>0){
@@ -753,29 +902,82 @@ function drawGantt(ctx,W,gActs,gTop,gBot){
   ctx.strokeRect(ML,gTop,W-ML-MR,gBot-gTop);
 
   /* Section header */
-  ctx.save();ctx.fillStyle='rgba(11,31,58,0.85)';ctx.fillRect(0,gTop,W,18);
-  ctx.font='bold 11px sans-serif';ctx.fillStyle='#e0bf6e';
+  ctx.save();ctx.fillStyle='rgba(11,31,58,0.85)';ctx.fillRect(0,gTop,W,24);
+  ctx.font='bold 12.5px sans-serif';ctx.fillStyle='#e0bf6e';
   ctx.textAlign='left';ctx.textBaseline='middle';
-  ctx.fillText('▶ 施工進度桿狀圖',6,gTop+9);ctx.restore();
+  ctx.fillText('▶ 施工進度桿狀圖',8,gTop+12);ctx.restore();
 
   /* Vertical gridlines at each critical node */
   _chain.forEach(function(id){
     var x=nm[id].x;
-    ctx.beginPath();ctx.moveTo(x,gTop+18);ctx.lineTo(x,gBot);
+    ctx.beginPath();ctx.moveTo(x,gTop+24);ctx.lineTo(x,gBot);
     ctx.strokeStyle='rgba(0,0,0,0.12)';ctx.lineWidth=0.8;ctx.setLineDash([3,3]);
     ctx.stroke();ctx.setLineDash([]);
   });
 
   gActs.forEach(function(a,row){
-    var y=gTop+18+row*GRH+3;
+    var y=gTop+24+row*GRH+3;
     var x0=timeToX(nm[a.f].ES);
     var x1=timeToX(nm[a.f].ES+a.d);
     var bw=x1-x0;
-    /* Activity name */
-    ctx.save();ctx.font='10.5px sans-serif';ctx.fillStyle='#333';
+    /* Activity name — rendered at a fixed, smaller 12pt (not the shared
+       16pt boost) specifically so the full work-item name can show without
+       truncation; only trimmed with an ellipsis if even 12pt can't fit. */
+    ctx.save();ctx.font='12.5px sans-serif';ctx.fillStyle='#333';
     ctx.textAlign='right';ctx.textBaseline='middle';
-    var nm_=a.n;if(ctx.measureText(nm_).width>ML-8)nm_=nm_.slice(0,6)+'…';
-    ctx.fillText(nm_,ML-4,y+GRH/2-3);ctx.restore();
+    var anchorX=ML-ML*0.2, anchorY=y+GRH/2-3;
+    var t0=ctx.getTransform();
+    var sx0=Math.hypot(t0.a,t0.b), sy0=Math.hypot(t0.c,t0.d);
+    var nm_=a.n;
+    if(Math.abs(sx0-sy0)>1e-3){
+      var ROW_LABEL_PT=12, MIN_PT=7, srcFontPx=12.5;
+      var dx0=t0.a*anchorX+t0.c*anchorY+t0.e, dy0=t0.b*anchorX+t0.d*anchorY+t0.f;
+      var availDevicePx=(ML-ML*0.25)*sx0;
+      var uMax=(ROW_LABEL_PT*96/72)*PRINT_SS/srcFontPx;
+      var uMin=(MIN_PT*96/72)*PRINT_SS/srcFontPx;
+      /* measureText's width is unaffected by the transform (it's purely a
+         function of the font size); the ACTUAL on-page width once drawn is
+         that natural width times whatever local scale (u) we render at. So
+         instead of truncating, shrink u (down to a 7pt floor) until the
+         full name fits on one line. If it STILL doesn't fit at the floor
+         size, wrap onto a second line (splitting at whichever character
+         count keeps each line within the available width) — only truncate
+         with an ellipsis if even two lines at the floor size can't hold it. */
+      var naturalWidth=ctx.measureText(nm_).width;
+      var neededU=availDevicePx/naturalWidth;
+      var u=Math.min(uMax,Math.max(uMin,neededU));
+      ctx.setTransform(u,0,0,u,dx0,dy0);
+      if(naturalWidth*u<=availDevicePx){
+        CanvasRenderingContext2D.prototype.fillText.call(ctx,nm_,0,0);
+      }else{
+        u=uMin;
+        ctx.setTransform(u,0,0,u,dx0,dy0);
+        var maxWLocal=availDevicePx/u;
+        /* find the longest prefix that fits on line 1 */
+        var line1=nm_,line2='';
+        while(line1.length>1&&ctx.measureText(line1).width>maxWLocal)line1=line1.slice(0,-1);
+        line2=nm_.slice(line1.length);
+        if(line2&&ctx.measureText(line2).width>maxWLocal){
+          while(line2.length>1&&ctx.measureText(line2.slice(0,-1)+'…').width>maxWLocal)line2=line2.slice(0,-1);
+          line2=line2+'…';
+        }
+        var lineGap=srcFontPx*1.15;
+        if(line2){
+          CanvasRenderingContext2D.prototype.fillText.call(ctx,line1,0,-lineGap/2);
+          CanvasRenderingContext2D.prototype.fillText.call(ctx,line2,0,lineGap/2);
+        }else{
+          CanvasRenderingContext2D.prototype.fillText.call(ctx,line1,0,0);
+        }
+      }
+    }else{
+      var maxW=ML-ML*0.25;
+      if(ctx.measureText(nm_).width>maxW){
+        while(nm_.length>1&&ctx.measureText(nm_+'…').width>maxW)nm_=nm_.slice(0,-1);
+        nm_=nm_+'…';
+      }
+      ctx.fillText(nm_,anchorX,anchorY);
+    }
+    ctx.restore();
     /* Bar */
     var isCrit=a.crit;
     ctx.fillStyle=isCrit?'rgba(192,0,0,0.78)':'rgba(34,85,170,0.55)';
@@ -783,19 +985,46 @@ function drawGantt(ctx,W,gActs,gTop,gBot){
     ctx.strokeStyle=isCrit?'#a00':'#1a3d8a';
     ctx.lineWidth=1;ctx.strokeRect(x0,y,Math.max(bw,4),GRH-6);
     /* Duration label inside bar */
-    if(bw>35){
-      ctx.save();ctx.font='9.5px sans-serif';ctx.fillStyle='#fff';
+    if(bw>42){
+      ctx.save();ctx.font='11px sans-serif';ctx.fillStyle='#fff';
       ctx.textAlign='center';ctx.textBaseline='middle';
       ctx.fillText(a.d+'天',x0+bw/2,y+GRH/2-3);ctx.restore();
     }
   });
+
+  /* Right-side percentage axis (secondary), for S-curve overlay */
+  var pTop=gTop+24+10,pBot=gBot-6;
+  function gY(pct){ return pTop+(1-pct/100)*(pBot-pTop); }
+  ctx.save();
+  [0,20,40,60,80,100].forEach(function(p){
+    var y=gY(p);
+    ctx.beginPath();ctx.moveTo(ML,y);ctx.lineTo(W-MR,y);
+    ctx.strokeStyle=p===0||p===100?'rgba(26,110,53,.28)':'rgba(26,110,53,.12)';
+    ctx.lineWidth=p===0||p===100?1:0.7;
+    ctx.stroke();
+    ctx.fillStyle='#1a6e35';ctx.font='13px sans-serif';ctx.textAlign='right';
+    ctx.textBaseline='middle';ctx.fillText(p+'%',W-4,y);
+  });
+  ctx.restore();
+
+  /* Overlay planned S-curve on top of the Gantt bars */
+  var pd=calcPlanned();
+  var pts=[];
+  pd.data.forEach(function(v,i){ pts.push({x:timeToX(i*pd.pLen),y:gY(v)}); });
+  if(pts.length>=2){
+    ctx.save();ctx.strokeStyle='#1a6e35';ctx.lineJoin='round';
+    strokeCurveNoDistort(ctx,pts,2.2);
+    ctx.fillStyle='#1a6e35';
+    pts.forEach(function(p){ drawDot(ctx,p.x,p.y,2.6); });
+    ctx.restore();
+  }
 }
 
 /* ════════════════════════════════════════════════════════
    DRAW: S-curve
 ════════════════════════════════════════════════════════ */
 function scY(pct,scTop,scH){
-  return scTop+8+(1-pct/100)*(scH-16);
+  return scTop+38+(1-pct/100)*(scH-58);
 }
 
 function drawSCurve(ctx,W,scTop,scBot){
@@ -806,10 +1035,10 @@ function drawSCurve(ctx,W,scTop,scBot){
   ctx.strokeRect(ML,scTop,W-ML-MR,scH);
 
   /* Section header */
-  ctx.save();ctx.fillStyle='rgba(11,31,58,0.85)';ctx.fillRect(0,scTop,W,18);
-  ctx.font='bold 11px sans-serif';ctx.fillStyle='#e0bf6e';
+  ctx.save();ctx.fillStyle='rgba(11,31,58,0.85)';ctx.fillRect(0,scTop,W,24);
+  ctx.font='bold 12.5px sans-serif';ctx.fillStyle='#e0bf6e';
   ctx.textAlign='left';ctx.textBaseline='middle';
-  ctx.fillText('▶ S 曲線',6,scTop+9);ctx.restore();
+  ctx.fillText('▶ S 曲線',8,scTop+12);ctx.restore();
 
   /* Y gridlines */
   [0,20,40,60,80,100].forEach(function(p){
@@ -818,12 +1047,12 @@ function drawSCurve(ctx,W,scTop,scBot){
     ctx.strokeStyle=p===0||p===100?'rgba(0,0,0,.25)':'rgba(0,0,0,.1)';
     ctx.lineWidth=p===0||p===100?1:0.7;ctx.setLineDash(p%20===0&&p!==0&&p!==100?[3,4]:[]);
     ctx.stroke();ctx.setLineDash([]);
-    ctx.fillStyle='#555';ctx.font='9.5px sans-serif';ctx.textAlign='right';
+    ctx.fillStyle='#555';ctx.font='11px sans-serif';ctx.textAlign='right';
     ctx.textBaseline='middle';ctx.fillText(p+'%',ML-3,y);
   });
 
   /* Y label */
-  ctx.save();ctx.fillStyle='#666';ctx.font='10px sans-serif';
+  ctx.save();ctx.fillStyle='#666';ctx.font='12px sans-serif';
   ctx.textAlign='center';ctx.textBaseline='middle';
   ctx.translate(14,scTop+scH/2);ctx.rotate(-Math.PI/2);
   ctx.fillText('累計進度',0,0);ctx.restore();
@@ -831,7 +1060,7 @@ function drawSCurve(ctx,W,scTop,scBot){
   /* X gridlines at critical nodes */
   _chain.forEach(function(id){
     var x=nm[id].x;
-    ctx.beginPath();ctx.moveTo(x,scTop+18);ctx.lineTo(x,scBot);
+    ctx.beginPath();ctx.moveTo(x,scTop+24);ctx.lineTo(x,scBot);
     ctx.strokeStyle='rgba(0,0,0,0.1)';ctx.lineWidth=0.7;ctx.setLineDash([3,3]);
     ctx.stroke();ctx.setLineDash([]);
   });
@@ -844,20 +1073,11 @@ function drawSCurve(ctx,W,scTop,scBot){
       pts.push({x:timeToX(i*pLen),y:scY(v,scTop,scH)});
     });
     if(pts.length<2)return;
-    ctx.save();ctx.strokeStyle=col;ctx.lineWidth=2;ctx.lineJoin='round';
-    if(dash)ctx.setLineDash([7,4]);
-    ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);
-    for(var i=1;i<pts.length;i++){
-      /* Smooth bezier between points */
-      var cpx=(pts[i-1].x+pts[i].x)/2;
-      ctx.bezierCurveTo(cpx,pts[i-1].y,cpx,pts[i].y,pts[i].x,pts[i].y);
-    }
-    ctx.stroke();ctx.setLineDash([]);
+    ctx.save();ctx.strokeStyle=col;ctx.lineJoin='round';
+    strokeCurveNoDistort(ctx,pts,2,dash?[7,4]:null);
     /* Dots */
     ctx.fillStyle=col;
-    pts.forEach(function(p){
-      ctx.beginPath();ctx.arc(p.x,p.y,3,0,Math.PI*2);ctx.fill();
-    });
+    pts.forEach(function(p){ drawDot(ctx,p.x,p.y,3); });
     ctx.restore();
   }
 
@@ -866,11 +1086,7 @@ function drawSCurve(ctx,W,scTop,scBot){
   var fillPts=pd.data.map(function(v,i){return{x:timeToX(i*pd.pLen),y:scY(v,scTop,scH)};});
   if(fillPts.length>=2){
     ctx.save();
-    ctx.beginPath();ctx.moveTo(fillPts[0].x,fillPts[0].y);
-    for(var i=1;i<fillPts.length;i++){
-      var cpx=(fillPts[i-1].x+fillPts[i].x)/2;
-      ctx.bezierCurveTo(cpx,fillPts[i-1].y,cpx,fillPts[i].y,fillPts[i].x,fillPts[i].y);
-    }
+    ctx.beginPath();smoothPath(ctx,fillPts);
     var lastX=fillPts[fillPts.length-1].x;
     ctx.lineTo(lastX,scBot-2);ctx.lineTo(fillPts[0].x,scBot-2);ctx.closePath();
     ctx.fillStyle='rgba(26,110,53,0.08)';ctx.fill();ctx.restore();
@@ -881,19 +1097,42 @@ function drawSCurve(ctx,W,scTop,scBot){
   drawLine(estimData, pd.pLen,'#2255aa',true);
 
   /* Legend */
-  var lx=W-MR-10,ly=scTop+26;
+  var lx=ML+20,ly=scTop+46;
   function leg(col,dash,txt){
     ctx.save();ctx.strokeStyle=col;ctx.lineWidth=2;
     if(dash)ctx.setLineDash([5,3]);
-    ctx.beginPath();ctx.moveTo(lx-45,ly);ctx.lineTo(lx-28,ly);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(lx,ly);ctx.lineTo(lx+24,ly);ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle='#333';ctx.font='9.5px sans-serif';ctx.textAlign='right';
-    ctx.textBaseline='middle';ctx.fillText(txt,lx,ly);ctx.restore();
-    ly+=14;
+    ctx.fillStyle='#333';ctx.font='12px sans-serif';ctx.textAlign='left';
+    ctx.textBaseline='middle';ctx.fillText(txt,lx+32,ly);ctx.restore();
+    ly+=21;
   }
   leg('#1a6e35',false,'預定進度');
   leg('#c00',false,'實際進度');
   leg('#2255aa',true,'估驗進度');
+}
+
+/* ════════════════════════════════════════════════════════
+   DRAW: Compact time axis (between sections)
+════════════════════════════════════════════════════════ */
+function drawMiniAxis(ctx,W,y){
+  ctx.save();
+  ctx.strokeStyle='#999';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(ML,y);ctx.lineTo(W-MR,y);ctx.stroke();
+  var lastRight=-Infinity;
+  _chain.forEach(function(id){
+    var x=nm[id].x,t=nm[id].ES;
+    ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y+4);
+    ctx.strokeStyle='#777';ctx.lineWidth=1;ctx.stroke();
+    ctx.fillStyle='#555';ctx.font='10.5px sans-serif';
+    ctx.textAlign='center';ctx.textBaseline='top';
+    var halfW=ctx.measureText(t+'天').width/2;
+    if(x-halfW>lastRight+12){ /* skip labels that would collide with the previous one */
+      ctx.fillText(t+'天',x,y+5);
+      lastRight=x+halfW;
+    }
+  });
+  ctx.restore();
 }
 
 /* ════════════════════════════════════════════════════════
@@ -904,17 +1143,22 @@ function drawTimeAxis(ctx,W,tTop){
   ctx.beginPath();ctx.moveTo(ML,tTop);ctx.lineTo(W-MR,tTop);ctx.stroke();
 
   /* Ticks + labels at each critical node */
+  var lastRight=-Infinity;
   _chain.forEach(function(id){
     var x=nm[id].x,t=nm[id].ES;
     ctx.beginPath();ctx.moveTo(x,tTop);ctx.lineTo(x,tTop+6);
     ctx.strokeStyle='#555';ctx.lineWidth=1.5;ctx.stroke();
-    ctx.fillStyle='#444';ctx.font='10px sans-serif';
+    ctx.fillStyle='#444';ctx.font='12px sans-serif';
     ctx.textAlign='center';ctx.textBaseline='top';
-    ctx.fillText(t+'天',x,tTop+8);
+    var halfW=ctx.measureText(t+'天').width/2;
+    if(x-halfW>lastRight+12){
+      ctx.fillText(t+'天',x,tTop+8);
+      lastRight=x+halfW;
+    }
   });
 
   /* Center label */
-  ctx.fillStyle='#666';ctx.font='10px sans-serif';ctx.textAlign='center';
+  ctx.fillStyle='#666';ctx.font='12px sans-serif';ctx.textAlign='center';
   ctx.fillText('工期（天）',ML+(W-ML-MR)/2,tTop+20);
 }
 
@@ -928,9 +1172,9 @@ function drawTodayLine(ctx,W,admTop,scBot){
   ctx.save();ctx.strokeStyle='rgba(180,0,0,0.65)';ctx.lineWidth=2;ctx.setLineDash([6,4]);
   ctx.beginPath();ctx.moveTo(x,admTop);ctx.lineTo(x,scBot);ctx.stroke();
   ctx.setLineDash([]);
-  ctx.fillStyle='#c00';ctx.font='bold 10px sans-serif';
+  ctx.fillStyle='#c00';ctx.font='bold 12px sans-serif';
   ctx.textAlign='center';ctx.textBaseline='bottom';
-  ctx.fillText('今日 '+td+'天',x,admTop+16);
+  ctx.fillText('今日 '+td+'天',x,admTop+46);
   ctx.restore();
 }
 
@@ -947,12 +1191,12 @@ function nearNode(x,y){
 }
 cvEl.addEventListener('mousedown',function(e){
   var p=cvPos(e);
-  var n=Object.values(nm).find(function(n){return Math.hypot(n.x-p.x,p.y-(n.y+170))<=R+8;});
-  if(n)dragN={n:n,ox:p.x-n.x,oy:p.y-(n.y+170)};
+  var n=Object.values(nm).find(function(n){return Math.hypot(n.x-p.x,p.y-(n.y+(window._yBase||0)))<=R+8;});
+  if(n)dragN={n:n,ox:p.x-n.x,oy:p.y-(n.y+(window._yBase||0))};
 });
 cvEl.addEventListener('mousemove',function(e){
   var p=cvPos(e);
-  if(dragN){dragN.n.x=p.x-dragN.ox;dragN.n.y=(p.y-dragN.oy)-170;
+  if(dragN){dragN.n.x=p.x-dragN.ox;dragN.n.y=(p.y-dragN.oy)-(window._yBase||0);
     dragN.n._fixed=true;dragN.n._crit=(dragN.n.float===0);redraw();cvEl.style.cursor='grabbing';}
   else cvEl.style.cursor='default';
 });
@@ -1056,27 +1300,150 @@ function fillPrintHeader(){
 
 window.addEventListener('beforeprint', function(){
   fillPrintHeader();
+
+  /* Bump the label margins for the print pass — the print-only font boost
+     (see fillText patch below) needs more room on the left (row labels,
+     y-axis %) and right (axis end labels) than the on-screen layout
+     reserves, otherwise the bigger text runs past the sheet edge. */
+  window._savedML=ML; window._savedMR=MR;
+  ML=Math.round(window._savedML*3.0);
+  MR=Math.round(window._savedMR*2.8);
+
+  calculate(); /* re-run layout (not just redraw) so node/bar x-positions are rebuilt against the bumped ML/MR, not the stale on-screen ones */
+
   var cv=document.getElementById('cv');
-  var targetW=1050;  /* A4 landscape printable ≈ 1050px @ 96dpi */
-  if(cv.width<=targetW){_printSnap=null;return;}
-  /* Snapshot current canvas */
-  var snap=document.createElement('canvas');
-  snap.width=cv.width; snap.height=cv.height;
-  snap.getContext('2d').drawImage(cv,0,0);
-  _printSnap={snap:snap, w:cv.width, h:cv.height};
-  /* Scale canvas down */
-  var scale=targetW/cv.width;
-  cv.width=targetW;
-  cv.height=Math.round(cv.height*scale);
-  cv.getContext('2d').drawImage(snap,0,0,cv.width,cv.height);
+  var sb=window._sectionBounds;
+  if(!sb){return;}
+
+  var mmToPx=96/25.4;
+  var pageW=(420-7-7)*mmToPx;
+  var pageH=(297-8-9)*mmToPx;
+  var hdrTemplate=document.getElementById('print-hdr');
+
+  var sections=[
+    {label:'ADM 進度網狀圖',y0:sb.adm0,y1:sb.adm1},
+    {label:'施工進度桿狀圖',y0:sb.gantt0,y1:sb.gantt1},
+    {label:'S 曲線圖',y0:sb.sc0,y1:sb.sc1}
+  ];
+
+  var anchor=document.getElementById('chart-sec');
+  var pages=[];
+
+  /* Pass 1: build each page with its header clone (but no canvas yet) so we
+     can measure the clone's real rendered height, then size the canvas to
+     exactly fill the remaining A3 space. */
+  sections.forEach(function(s){
+    if(s.y1-s.y0<=0)return;
+    var page=document.createElement('div');
+    page.className='print-diagram-page';
+    var hdrClone=hdrTemplate.cloneNode(true);
+    hdrClone.removeAttribute('id');
+    hdrClone.className='pdp-hdr';
+    hdrClone.style.display='block';
+    page.appendChild(hdrClone);
+    anchor.parentNode.insertBefore(page,anchor);
+    pages.push({page:page,hdrClone:hdrClone,y0:s.y0,y1:s.y1});
+  });
+
+  /* Pass 2: re-render each section directly at its stretched target size
+     (native vector redraw with a non-uniform scale transform), instead of
+     bitmap-resizing the already-rasterised canvas — this keeps text and
+     line work crisp even though the image is stretched taller to fill
+     the page, rather than blurring from a raster resize. */
+  var sections2=[
+    {y0:sb.adm0,y1:sb.adm1,draw:function(ctx,scaleX,scaleY){
+      drawAdm(ctx,sb.W,sb.yBase,sb.admTop,sb.admBot);
+      drawMiniAxis(ctx,sb.W,sb.admBot+8);
+      drawTodayLine(ctx,sb.W,sb.admTop,sb.admBot+8);
+    }},
+    {y0:sb.gantt0,y1:sb.gantt1,draw:function(ctx){
+      drawGantt(ctx,sb.W,sb.gActs,sb.gTop,sb.gBot);
+      drawMiniAxis(ctx,sb.W,sb.gBot+8);
+    }},
+    {y0:sb.sc0,y1:sb.sc1,draw:function(ctx){
+      drawSCurve(ctx,sb.W,sb.scTop,sb.scBot);
+      drawTimeAxis(ctx,sb.W,sb.tTop);
+    }}
+  ];
+
+  pages.forEach(function(p,idx){
+    var h=p.y1-p.y0;
+    var hdrH=p.hdrClone.getBoundingClientRect().height;
+    var availW=pageW-4, availH=pageH-hdrH-8-4;
+    var scaleX=availW/sb.W, scaleY=availH/h;
+    var outW=Math.round(availW), outH=Math.round(availH);
+    var SS=2.5; /* supersample so print rasterisation (usually 300dpi+) stays crisp */
+    PRINT_SS=SS;
+
+    var out=document.createElement('canvas');
+    out.width=Math.round(outW*SS); out.height=Math.round(outH*SS);
+    out.style.width=outW+'px'; out.style.height=outH+'px';
+    var octx=out.getContext('2d');
+    octx.setTransform(scaleX*SS,0,0,scaleY*SS,0,-p.y0*scaleY*SS);
+
+    /* Text must not inherit the non-uniform (width≠height) stretch or it
+       reads as squashed/stretched glyphs. Patch fillText on this offscreen
+       context only: if the ambient transform at call time is already
+       isotropic (e.g. drawNode's own local correction), pass straight
+       through; otherwise keep the anchor point where the transform puts
+       it, but render the glyph at a fixed comfortable target size (~16pt
+       for the smallest axis/day labels, everything else scaling up from
+       there in the same proportion) rather than one tied to the page's
+       horizontal compression — axis labels, day counts and activity names
+       need to stay readable regardless of how squeezed the timeline is. */
+    var REF_FONT_PX=9, TARGET_PT=14, TARGET_CSS_PX=TARGET_PT*96/72;
+    var TEXT_SCALE=TARGET_CSS_PX*SS/REF_FONT_PX;
+    PRINT_TEXT_SCALE=TEXT_SCALE;
+    (function(){
+      var origFillText=CanvasRenderingContext2D.prototype.fillText;
+      var origMeasureText=CanvasRenderingContext2D.prototype.measureText;
+      /* measureText must report the width the boosted fillText will actually
+         render at, in the same "user space" units callers compare against
+         (e.g. `if (measureText(name).width > ML-8) truncate…`) — otherwise
+         truncation/pill-sizing decisions are made against the old, smaller
+         size and the real (bigger) text spills past them. */
+      octx.measureText=function(text){
+        var m=origMeasureText.call(this,text);
+        var t=this.getTransform();
+        var sx=Math.hypot(t.a,t.b), sy=Math.hypot(t.c,t.d);
+        if(Math.abs(sx-sy)<1e-3||sx===0)return m;
+        var ratio=TEXT_SCALE/sx;
+        var scaled=Object.create(m);
+        Object.defineProperty(scaled,'width',{value:m.width*ratio,enumerable:true});
+        return scaled;
+      };
+      octx.fillText=function(text,x,y,maxWidth){
+        var t=this.getTransform();
+        var sx=Math.hypot(t.a,t.b), sy=Math.hypot(t.c,t.d);
+        if(Math.abs(sx-sy)<1e-3){ origFillText.call(this,text,x,y,maxWidth); return; }
+        var dx=t.a*x+t.c*y+t.e, dy=t.b*x+t.d*y+t.f;
+        var angle=Math.atan2(t.b,t.a); /* preserve any local rotation (e.g. the rotated axis label) */
+        var u=TEXT_SCALE;
+        this.save();
+        this.setTransform(u*Math.cos(angle),u*Math.sin(angle),-u*Math.sin(angle),u*Math.cos(angle),dx,dy);
+        origFillText.call(this,text,0,0,maxWidth);
+        this.restore();
+      };
+    })();
+
+    octx.fillStyle='#e9e5dc';
+    octx.fillRect(0,p.y0,sb.W,h);
+    sections2[idx].draw(octx,scaleX,scaleY);
+    octx.setTransform(1,0,0,1,0,0);
+
+    p.page.appendChild(out);
+  });
+
+  window._printPages=pages.map(function(p){return p.page;});
 });
 
 window.addEventListener('afterprint', function(){
-  if(_printSnap){
-    var cv=document.getElementById('cv');
-    cv.width=_printSnap.w; cv.height=_printSnap.h;
-    cv.getContext('2d').drawImage(_printSnap.snap,0,0);
-    _printSnap=null;
+  PRINT_SS=1;
+  PRINT_TEXT_SCALE=0;
+  if(window._savedML!==undefined){ ML=window._savedML; MR=window._savedMR; calculate(); }
+  if(window._printPages){
+    window._printPages.forEach(function(p){p.remove();});
+    window._printPages=null;
   }
 });
 
