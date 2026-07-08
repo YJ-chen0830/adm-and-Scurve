@@ -742,7 +742,7 @@ function drawAdm(ctx,W,yBase,admTop,admBot){
   ctx.fillText('▶ ADM 進度網狀圖',8,yBase+10);ctx.restore();
 
   /* Right-side percentage axis (secondary), for S-curve overlay — drawn first so nodes/arrows stay on top */
-  var pTop=admTop+24+10,pBot=admBot-6;
+  var pTop=admTop+24+30,pBot=admBot-6;
   function aY(pct){ return pTop+(1-pct/100)*(pBot-pTop); }
   ctx.save();
   [0,20,40,60,80,100].forEach(function(p){
@@ -770,17 +770,22 @@ function drawAdm(ctx,W,yBase,admTop,admBot){
 
   var mode=(document.getElementById('adm-mode')||{}).value||'merge';
   if(mode==='merge'){
-    /* 同節點對合併：一條線 + 清單標註 */
+    /* 同節點對合併：一條線 + 清單標註（先畫線、後統一放置標註框避免重疊） */
     var groups={};
     acts.forEach(function(a){
       var k=(+a.f)+'-'+(+a.t);
       (groups[k]=groups[k]||[]).push(a);
     });
+    var boxes=[];
     Object.keys(groups).forEach(function(k){
       var g=groups[k];
       if(g.length===1){g[0]._off=0;drawArrow(ctx,g[0],yBase);}
-      else drawGroupArrow(ctx,g,yBase);
+      else{
+        var spec=drawGroupArrowLine(ctx,g,yBase);
+        if(spec)boxes.push(spec);
+      }
     });
+    placeGroupBoxes(ctx,boxes,W,admTop,admBot);
   }else{
     /* 分離線條（扇形偏移） */
     var pc={};
@@ -874,10 +879,10 @@ function routePath(src,dst,off,yBase){
   return [{x:sx+(dx>sx?R:-R),y:sy},{x:mx,y:sy},{x:mx,y:dy},{x:dx+(dx>sx?-R:R),y:dy}];
 }
 
-/* 同節點對多工項：畫一條代表線，工項以清單標註（各自天數/浮時） */
-function drawGroupArrow(ctx,g,yBase){
+/* 同節點對多工項：畫線 + 回傳標註框規格（框由 placeGroupBoxes 統一放置） */
+function drawGroupArrowLine(ctx,g,yBase){
   var a0=g[0];
-  if(!nm[a0.f]||!nm[a0.t])return;
+  if(!nm[a0.f]||!nm[a0.t])return null;
   var anyCrit=g.some(function(a){return a.crit;});
   var allDummy=g.every(function(a){return a.d===0;});
   var col=allDummy?'#999':(anyCrit?'#c00':'#2255aa');
@@ -895,46 +900,90 @@ function drawGroupArrow(ctx,g,yBase){
   ctx.lineTo(last.x-L*Math.cos(ang-aw),last.y-L*Math.sin(ang-aw));
   ctx.lineTo(last.x-L*Math.cos(ang+aw),last.y-L*Math.sin(ang+aw));
   ctx.closePath();ctx.fillStyle=col;ctx.fill();
-  /* 最長線段中點作為清單錨點 */
+  ctx.restore();
+  /* 最長線段中點作為錨點 */
   var bl=0,bs=null;
   for(var i=0;i<pts.length-1;i++){
     var ddx=pts[i+1].x-pts[i].x,ddy=pts[i+1].y-pts[i].y,len=Math.hypot(ddx,ddy);
     if(len>bl){bl=len;bs={mx:(pts[i].x+pts[i+1].x)/2,my:(pts[i].y+pts[i+1].y)/2};}
   }
-  if(bs){
-    var lines=g.map(function(a){
-      var t=(a.n&&a.n!=='虛作業'?a.n:'虛作業');
-      if(a.d>0)t+='　'+a.d+'天'+(a.crit?'':(a.float>0?' 浮'+a.float:''));
-      return {t:t,crit:a.crit,dummy:a.d===0};
+  if(!bs)return null;
+  var lines=g.map(function(a){
+    var t=(a.n&&a.n!=='虛作業'?a.n:'虛作業');
+    if(a.d>0)t+='　'+a.d+'天'+(a.crit?'':(a.float>0?' 浮'+a.float:''));
+    return {t:t,crit:a.crit,dummy:a.d===0};
+  });
+  var LH=19;
+  var perCol=Math.min(lines.length,9);
+  var nCol=Math.ceil(lines.length/perCol);
+  ctx.font='12.5px sans-serif';
+  var colWs=[];
+  for(var c=0;c<nCol;c++){
+    var wMax=0;
+    lines.slice(c*perCol,(c+1)*perCol).forEach(function(l){
+      var w2=ctx.measureText(l.t).width;if(w2>wMax)wMax=w2;
     });
-    var perCol=Math.min(lines.length,9);
-    var nCol=Math.ceil(lines.length/perCol);
-    var LH=19,colW=185;
-    var totalH=perCol*LH;
-    var x0=bs.mx-(nCol-1)*colW/2;
-    var y0=bs.my-totalH/2-8; /* 稍微上移避開線 */
-    ctx.font='12.5px sans-serif';
-    for(var c=0;c<nCol;c++){
-      var colLines=lines.slice(c*perCol,(c+1)*perCol);
-      /* 背板 */
-      var wMax=0;
-      colLines.forEach(function(l){var w2=ctx.measureText(l.t).width;if(w2>wMax)wMax=w2;});
-      var bx=x0+c*colW;
-      ctx.fillStyle='rgba(233,229,220,.95)';
-      ctx.fillRect(bx-wMax/2-8,y0-LH/2-2,wMax+16,colLines.length*LH+4);
-      ctx.strokeStyle='rgba(150,140,120,.5)';ctx.lineWidth=0.8;
-      ctx.strokeRect(bx-wMax/2-8,y0-LH/2-2,wMax+16,colLines.length*LH+4);
+    colWs.push(wMax+20);
+  }
+  var boxW=colWs.reduce(function(a,b){return a+b;},0);
+  var boxH=perCol*LH+8;
+  return {mx:bs.mx,my:bs.my,lines:lines,perCol:perCol,nCol:nCol,colWs:colWs,
+          boxW:boxW,boxH:boxH,LH:LH};
+}
+
+/* 統一放置標註框：優先放在線上方，重疊時往下推，並夾在圖區內 */
+function placeGroupBoxes(ctx,boxes,W,admTop,admBot){
+  var placed=[];
+  var yMin=admTop+52,yMax=admBot-10;
+  boxes.sort(function(a,b){return a.mx-b.mx;});
+  boxes.forEach(function(b){
+    var x=Math.max(ML+8+b.boxW/2,Math.min(W-MR-8-b.boxW/2,b.mx));
+    var y=b.my-b.boxH-16; /* 先試線上方 */
+    if(y<yMin)y=b.my+16;  /* 不行放下方 */
+    function rect(yy){return {x0:x-b.boxW/2,x1:x+b.boxW/2,y0:yy,y1:yy+b.boxH};}
+    var guard=0;
+    while(guard++<60){
+      var r=rect(y),hit=null;
+      for(var i=0;i<placed.length;i++){
+        var q=placed[i];
+        if(r.x0<q.x1&&r.x1>q.x0&&r.y0<q.y1&&r.y1>q.y0){hit=q;break;}
+      }
+      if(!hit)break;
+      y=hit.y1+8; /* 往下疊 */
+      if(y+b.boxH>yMax){ /* 底了改往上找 */
+        y=Math.max(yMin,placed.reduce(function(m,q){return Math.min(m,q.y0);},yMax)-b.boxH-8);
+        break;
+      }
+    }
+    y=Math.max(yMin,Math.min(yMax-b.boxH,y));
+    var r=rect(y);placed.push(r);
+    /* 背板 */
+    ctx.save();
+    ctx.fillStyle='rgba(233,229,220,.96)';
+    ctx.fillRect(r.x0,r.y0,b.boxW,b.boxH);
+    ctx.strokeStyle='rgba(150,140,120,.55)';ctx.lineWidth=0.8;
+    ctx.strokeRect(r.x0,r.y0,b.boxW,b.boxH);
+    /* 錨點連線 */
+    var cx=Math.max(r.x0+6,Math.min(r.x1-6,b.mx));
+    ctx.strokeStyle='rgba(150,140,120,.6)';
+    ctx.beginPath();
+    if(b.my>r.y1){ctx.moveTo(cx,r.y1);ctx.lineTo(b.mx,b.my-4);}
+    else if(b.my<r.y0){ctx.moveTo(cx,r.y0);ctx.lineTo(b.mx,b.my+4);}
+    ctx.stroke();
+    /* 文字 */
+    ctx.font='12.5px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    var xCol=r.x0;
+    for(var c=0;c<b.nCol;c++){
+      var colLines=b.lines.slice(c*b.perCol,(c+1)*b.perCol);
+      var cxm=xCol+b.colWs[c]/2;
       colLines.forEach(function(l,li){
         ctx.fillStyle=l.dummy?'#999':(l.crit?'#c00':'#2255aa');
-        ctx.textAlign='center';ctx.textBaseline='middle';
-        ctx.fillText(l.t,bx,y0+li*LH);
+        ctx.fillText(l.t,cxm,r.y0+b.LH/2+4+li*b.LH);
       });
+      xCol+=b.colWs[c];
     }
-    /* 錨點連線小標記 */
-    ctx.strokeStyle='rgba(150,140,120,.6)';ctx.lineWidth=0.8;
-    ctx.beginPath();ctx.moveTo(bs.mx,y0+totalH-LH/2+2);ctx.lineTo(bs.mx,bs.my);ctx.stroke();
-  }
-  ctx.restore();
+    ctx.restore();
+  });
 }
 
 function drawArrow(ctx,a,yBase){
