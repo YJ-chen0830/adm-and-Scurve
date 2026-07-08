@@ -35,7 +35,9 @@ label{font-size:12px;color:#666;display:block;margin-bottom:3px;}
 #atbl{width:100%;border-collapse:collapse;font-size:12px;}
 #atbl th{background:#ede9df;padding:6px 4px;border:1px solid #ddd;font-weight:700;color:var(--navy);text-align:center;}
 #atbl td{border:1px solid #eee;padding:2px;}
-#atbl input{border:none;background:transparent;padding:5px 3px;font-size:12.5px;width:100%;text-align:center;}
+#atbl input{border:none;background:transparent;padding:5px 2px;font-size:12.5px;width:100%;text-align:center;}
+#atbl input[type=number]{-moz-appearance:textfield;appearance:textfield;}
+#atbl input[type=number]::-webkit-outer-spin-button,#atbl input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
 #atbl input:focus{outline:1px solid var(--gold);border-radius:2px;background:#fffde7;}
 #atbl input:focus{outline:1px solid var(--gold);border-radius:2px;background:#fffde7;}
 .dbtn{background:none;border:none;color:#c44;cursor:pointer;font-size:12px;padding:2px 4px;width:100%;}
@@ -210,10 +212,17 @@ label{font-size:12px;color:#666;display:block;margin-bottom:3px;}
       </div>
       <button class="abtn" style="width:100%;margin-bottom:7px;background:#5a7a3a"
         onclick="openImport()">📋 貼上匯入工項</button>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:7px">
+        <label style="margin:0;white-space:nowrap">網圖顯示</label>
+        <select id="adm-mode" onchange="calculate()" style="flex:1;padding:5px 8px;border:1px solid #ccc;border-radius:5px;font-size:12px;background:#fff">
+          <option value="merge" selected>合併同節點工項（清單標註）</option>
+          <option value="fan">分離線條（每工項一線）</option>
+        </select>
+      </div>
       <table id="atbl">
         <thead><tr>
-          <th style="width:32px">從</th><th style="width:32px">到</th>
-          <th style="width:38px">天數</th><th style="width:44px">比重%</th>
+          <th style="width:40px">從</th><th style="width:40px">到</th>
+          <th style="width:48px">天數</th><th style="width:52px">比重%</th>
           <th>作業名稱</th><th style="width:22px"></th>
         </tr></thead>
         <tbody id="abody"></tbody>
@@ -307,6 +316,23 @@ label{font-size:12px;color:#666;display:block;margin-bottom:3px;}
 <div class="modal" id="import-modal">
   <div class="ibox">
     <h3>📋 貼上匯入工項</h3>
+    <div style="display:flex;gap:14px;margin-bottom:8px;font-size:12.5px;">
+      <label style="display:flex;align-items:center;gap:5px;margin:0;cursor:pointer">
+        <input type="radio" name="imp-mode" value="dw" checked onchange="impModeChange()" style="width:auto">名稱／工期／比重
+      </label>
+      <label style="display:flex;align-items:center;gap:5px;margin:0;cursor:pointer">
+        <input type="radio" name="imp-mode" value="amt" onchange="impModeChange()" style="width:auto">預算表：名稱／金額（比重自動計算）
+      </label>
+    </div>
+    <div id="imp-hint-amt" class="hint" style="display:none">
+      直接從<b>預算書／詳細價目表</b>複製「項目名稱＋金額」欄（可含項次）貼上。
+      比重％依金額占比自動計算並歸整至 100%。匯入後所有工項預設同起訖節點（1→2），
+      請再依施工順序調整 從/到/天數。
+      <div style="margin-top:6px;display:flex;align-items:center;gap:8px">
+        <span>預設工期(天)：</span>
+        <input type="number" id="imp-dur" value="200" min="1" style="width:80px;padding:4px 6px;border:1px solid #ccc;border-radius:4px">
+      </div>
+    </div>
     <div class="hint">
       從 Excel 直接複製貼上（Tab 分隔），或用逗號分隔。<br>
       欄位順序：<b>作業名稱　工期(天)　比重%</b>　[開始天—可省略]<br>
@@ -742,17 +768,31 @@ function drawAdm(ctx,W,yBase,admTop,admBot){
     ctx.restore();
   }
 
-  /* Compute pair offsets */
-  var pc={};
-  acts.forEach(function(a){
-    var k=Math.min(+a.f,+a.t)+'-'+Math.max(+a.f,+a.t);
-    if(!pc[k])pc[k]=0;
-    var idx=pc[k];
-    a._off=(idx===0?0:(idx%2===0?1:-1)*Math.ceil(idx/2)*20);
-    pc[k]++;
-  });
-
-  acts.forEach(function(a){drawArrow(ctx,a,yBase);});
+  var mode=(document.getElementById('adm-mode')||{}).value||'merge';
+  if(mode==='merge'){
+    /* 同節點對合併：一條線 + 清單標註 */
+    var groups={};
+    acts.forEach(function(a){
+      var k=(+a.f)+'-'+(+a.t);
+      (groups[k]=groups[k]||[]).push(a);
+    });
+    Object.keys(groups).forEach(function(k){
+      var g=groups[k];
+      if(g.length===1){g[0]._off=0;drawArrow(ctx,g[0],yBase);}
+      else drawGroupArrow(ctx,g,yBase);
+    });
+  }else{
+    /* 分離線條（扇形偏移） */
+    var pc={};
+    acts.forEach(function(a){
+      var k=Math.min(+a.f,+a.t)+'-'+Math.max(+a.f,+a.t);
+      if(!pc[k])pc[k]=0;
+      var idx=pc[k];
+      a._off=(idx===0?0:(idx%2===0?1:-1)*Math.ceil(idx/2)*20);
+      pc[k]++;
+    });
+    acts.forEach(function(a){drawArrow(ctx,a,yBase);});
+  }
   Object.values(nm).forEach(function(n){drawNode(ctx,n,yBase);});
 }
 
@@ -788,8 +828,12 @@ function drawNode(ctx,n,yBase){
   ctx.textAlign='center';ctx.textBaseline='middle';
   ctx.fillStyle=col;ctx.font='bold '+Math.round(r*0.58)+'px sans-serif';
   ctx.fillText(n.id,x,y-r*0.28);
-  ctx.font=Math.round(r*0.42)+'px sans-serif';ctx.fillStyle='#333';
-  ctx.fillText(n.ES,x-r*0.3,y+r*0.5);ctx.fillText(n.LS,x+r*0.3,y+r*0.5);
+  ctx.fillStyle='#333';
+  var esS=String(n.ES),lsS=String(n.LS);
+  var maxLen=Math.max(esS.length,lsS.length);
+  var nfs=maxLen<=2?r*0.42:(maxLen===3?r*0.34:r*0.27);
+  ctx.font=Math.round(nfs)+'px sans-serif';
+  ctx.fillText(esS,x-r*0.42,y+r*0.5);ctx.fillText(lsS,x+r*0.42,y+r*0.5);
 
   if(aniso)ctx.restore();
 }
@@ -828,6 +872,69 @@ function routePath(src,dst,off,yBase){
   }
   var mx=(sx+dx)/2;
   return [{x:sx+(dx>sx?R:-R),y:sy},{x:mx,y:sy},{x:mx,y:dy},{x:dx+(dx>sx?-R:R),y:dy}];
+}
+
+/* 同節點對多工項：畫一條代表線，工項以清單標註（各自天數/浮時） */
+function drawGroupArrow(ctx,g,yBase){
+  var a0=g[0];
+  if(!nm[a0.f]||!nm[a0.t])return;
+  var anyCrit=g.some(function(a){return a.crit;});
+  var allDummy=g.every(function(a){return a.d===0;});
+  var col=allDummy?'#999':(anyCrit?'#c00':'#2255aa');
+  var src=nm[a0.f],dst=nm[a0.t];
+  var pts=routePath(src,dst,0,yBase);
+  ctx.save();ctx.strokeStyle=col;ctx.lineWidth=anyCrit?2.6:1.8;ctx.lineJoin='miter';
+  if(allDummy)ctx.setLineDash([7,5]);
+  ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);
+  for(var i=1;i<pts.length;i++)ctx.lineTo(pts[i].x,pts[i].y);
+  ctx.stroke();ctx.setLineDash([]);
+  var last=pts[pts.length-1],prev=pts[pts.length-2];
+  var ang=Math.atan2(last.y-prev.y,last.x-prev.x);
+  var L=12,aw=Math.PI/6;
+  ctx.beginPath();ctx.moveTo(last.x,last.y);
+  ctx.lineTo(last.x-L*Math.cos(ang-aw),last.y-L*Math.sin(ang-aw));
+  ctx.lineTo(last.x-L*Math.cos(ang+aw),last.y-L*Math.sin(ang+aw));
+  ctx.closePath();ctx.fillStyle=col;ctx.fill();
+  /* 最長線段中點作為清單錨點 */
+  var bl=0,bs=null;
+  for(var i=0;i<pts.length-1;i++){
+    var ddx=pts[i+1].x-pts[i].x,ddy=pts[i+1].y-pts[i].y,len=Math.hypot(ddx,ddy);
+    if(len>bl){bl=len;bs={mx:(pts[i].x+pts[i+1].x)/2,my:(pts[i].y+pts[i+1].y)/2};}
+  }
+  if(bs){
+    var lines=g.map(function(a){
+      var t=(a.n&&a.n!=='虛作業'?a.n:'虛作業');
+      if(a.d>0)t+='　'+a.d+'天'+(a.crit?'':(a.float>0?' 浮'+a.float:''));
+      return {t:t,crit:a.crit,dummy:a.d===0};
+    });
+    var perCol=Math.min(lines.length,9);
+    var nCol=Math.ceil(lines.length/perCol);
+    var LH=19,colW=185;
+    var totalH=perCol*LH;
+    var x0=bs.mx-(nCol-1)*colW/2;
+    var y0=bs.my-totalH/2-8; /* 稍微上移避開線 */
+    ctx.font='12.5px sans-serif';
+    for(var c=0;c<nCol;c++){
+      var colLines=lines.slice(c*perCol,(c+1)*perCol);
+      /* 背板 */
+      var wMax=0;
+      colLines.forEach(function(l){var w2=ctx.measureText(l.t).width;if(w2>wMax)wMax=w2;});
+      var bx=x0+c*colW;
+      ctx.fillStyle='rgba(233,229,220,.95)';
+      ctx.fillRect(bx-wMax/2-8,y0-LH/2-2,wMax+16,colLines.length*LH+4);
+      ctx.strokeStyle='rgba(150,140,120,.5)';ctx.lineWidth=0.8;
+      ctx.strokeRect(bx-wMax/2-8,y0-LH/2-2,wMax+16,colLines.length*LH+4);
+      colLines.forEach(function(l,li){
+        ctx.fillStyle=l.dummy?'#999':(l.crit?'#c00':'#2255aa');
+        ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.fillText(l.t,bx,y0+li*LH);
+      });
+    }
+    /* 錨點連線小標記 */
+    ctx.strokeStyle='rgba(150,140,120,.6)';ctx.lineWidth=0.8;
+    ctx.beginPath();ctx.moveTo(bs.mx,y0+totalH-LH/2+2);ctx.lineTo(bs.mx,bs.my);ctx.stroke();
+  }
+  ctx.restore();
 }
 
 function drawArrow(ctx,a,yBase){
@@ -1212,13 +1319,51 @@ function openImport(){
 }
 function closeImport(){document.getElementById('import-modal').classList.remove('show');}
 
+function impModeChange(){
+  var amt=document.querySelector('input[name="imp-mode"]:checked').value==='amt';
+  document.getElementById('imp-hint-amt').style.display=amt?'':'none';
+  document.getElementById('import-ta').placeholder=amt
+    ?'假設工程\t61000\n土方及打除工程\t2950000\n土木工程\t7200000'
+    :'整地及打除\t20\t18\n臨時防災設施\t50\t12\n土木工程\t60\t45';
+}
 function doImport(){
   var raw=document.getElementById('import-ta').value.trim();
   if(!raw){document.getElementById('import-msg').textContent='請先貼上資料。';return;}
 
+  var amtMode=document.querySelector('input[name="imp-mode"]:checked').value==='amt';
   var lines=raw.split(/\r?\n/).filter(function(l){return l.trim();});
   var parsed=[];
   var errors=[];
+
+  if(amtMode){
+    var defDur=Math.round(parseFloat(document.getElementById('imp-dur').value))||200;
+    lines.forEach(function(line,i){
+      var cols=line.indexOf('	')>=0 ? line.split('	') : line.split(',');
+      cols=cols.map(function(c){return c.trim().replace(/^["']|["']$/g,'');});
+      var amt=NaN,amtIdx=-1;
+      for(var ci=cols.length-1;ci>=0;ci--){
+        var vNum=parseFloat(cols[ci].replace(/[,，$ ]/g,''));
+        if(!isNaN(vNum)&&cols[ci]!==''){amt=vNum;amtIdx=ci;break;}
+      }
+      if(isNaN(amt)||amt<=0){ if(i>0)errors.push('第'+(i+1)+'列：無金額，已跳過'); return; }
+      var nm2='';
+      for(var cj=0;cj<amtIdx;cj++){
+        var cc=cols[cj];
+        if(cc&&isNaN(parseFloat(cc.replace(/[,，$ ]/g,'')))&&cc.length>nm2.length)nm2=cc;
+      }
+      if(!nm2)nm2='工項'+(parsed.length+1);
+      parsed.push({n:nm2.slice(0,20), d:defDur, amt:amt});
+    });
+    if(parsed.length){
+      var tot=parsed.reduce(function(a,b){return a+b.amt;},0);
+      parsed.forEach(function(pp){pp.w=+(pp.amt/tot*100).toFixed(2);});
+      var diff=+(100-parsed.reduce(function(a,b){return a+b.w;},0)).toFixed(2);
+      if(Math.abs(diff)>0.001){
+        var mx=parsed.reduce(function(a,b){return a.amt>b.amt?a:b;});
+        mx.w=+(mx.w+diff).toFixed(2);
+      }
+    }
+  }else{
 
   lines.forEach(function(line,i){
     /* Split by tab first, then comma */
@@ -1238,6 +1383,7 @@ function doImport(){
     if(isNaN(w)){errors.push('第'+(i+1)+'列比重非數字，設為0');w=0;}
     parsed.push({n:name, d:Math.round(d), w:+w.toFixed(3)});
   });
+  }
 
   if(!parsed.length){
     document.getElementById('import-msg').textContent='無法解析任何工項，請確認格式。';
@@ -1249,9 +1395,13 @@ function doImport(){
   var wok=Math.abs(wsum-100)<1;
 
   /* Build sequential ADM nodes: 1→2→3→...→n+1 */
-  acts=parsed.map(function(p,i){
-    return{f:i+1, t:i+2, d:p.d, w:p.w, n:p.n};
-  });
+  if(amtMode){
+    acts=parsed.map(function(p){ return{f:1, t:2, d:p.d, w:p.w, n:p.n}; });
+  }else{
+    acts=parsed.map(function(p,i){
+      return{f:i+1, t:i+2, d:p.d, w:p.w, n:p.n};
+    });
+  }
 
   /* Reset node positions */
   nm={};_chain=[];actualData=[];estimData=[];
