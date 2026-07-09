@@ -32,13 +32,13 @@ label{font-size:12px;color:#666;display:block;margin-bottom:3px;}
   background:#fafaf8;font-family:inherit;}
 .inp:focus{outline:1.5px solid var(--gold);}
 .row2{display:flex;gap:7px;}.row2>*{flex:1;}
-#atbl{width:100%;border-collapse:collapse;font-size:12px;}
-#atbl th{background:#ede9df;padding:6px 4px;border:1px solid #ddd;font-weight:700;color:var(--navy);text-align:center;}
-#atbl td{border:1px solid #eee;padding:2px;}
-#atbl input{border:none;background:transparent;padding:5px 2px;font-size:12.5px;width:100%;text-align:center;}
-#atbl input[type=number]{-moz-appearance:textfield;appearance:textfield;}
-#atbl input[type=number]::-webkit-outer-spin-button,#atbl input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
-#atbl input:focus{outline:1px solid var(--gold);border-radius:2px;background:#fffde7;}
+#atbl,#ctbl{width:100%;border-collapse:collapse;font-size:12px;}
+#atbl th,#ctbl th{background:#ede9df;padding:6px 4px;border:1px solid #ddd;font-weight:700;color:var(--navy);text-align:center;}
+#atbl td,#ctbl td{border:1px solid #eee;padding:2px;}
+#atbl input,#ctbl input{border:none;background:transparent;padding:5px 2px;font-size:12.5px;width:100%;text-align:center;}
+#atbl input[type=number],#ctbl input[type=number]{-moz-appearance:textfield;appearance:textfield;}
+#atbl input[type=number]::-webkit-outer-spin-button,#atbl input[type=number]::-webkit-inner-spin-button,#ctbl input[type=number]::-webkit-outer-spin-button,#ctbl input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+#atbl input:focus,#ctbl input:focus{outline:1px solid var(--gold);border-radius:2px;background:#fffde7;}
 #atbl input:focus{outline:1px solid var(--gold);border-radius:2px;background:#fffde7;}
 .dbtn{background:none;border:none;color:#c44;cursor:pointer;font-size:12px;padding:2px 4px;width:100%;}
 .abtn{padding:8px;background:var(--navy);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12.5px;font-weight:600;flex:1;}
@@ -235,6 +235,23 @@ label{font-size:12px;color:#666;display:block;margin-bottom:3px;}
     </div>
 
     <div>
+      <div class="sec">契約工項（桿狀圖）</div>
+      <div style="font-size:11px;color:#888;line-height:1.6;margin-bottom:6px">
+        選填。填入後<b>桿狀圖改顯示契約工項</b>（金色橫桿，依開始天＋天數排列）；
+        ADM 網圖與 S 曲線仍依上方「作業清單」（實體完成物件）計算。
+        管理費、營業稅等經常性項目放這裡即可，不必納入 ADM。
+      </div>
+      <table id="ctbl">
+        <thead><tr>
+          <th style="width:44px">開始</th><th style="width:48px">天數</th>
+          <th style="width:52px">比重%</th><th>契約工項名稱</th><th style="width:22px"></th>
+        </tr></thead>
+        <tbody id="cbody"></tbody>
+      </table>
+      <div style="display:flex;gap:6px;margin-top:7px;margin-bottom:14px">
+        <button class="abtn" onclick="addCItem()">＋ 新增</button>
+        <button class="abtn" style="background:#8a4a3a" onclick="clearCItems()">清空（改回排程作業）</button>
+      </div>
       <div class="sec">期數設定</div>
       <label>S曲線分期數</label>
       <input class="inp" type="number" id="periods" value="12" min="4" max="30" oninput="redraw()">
@@ -326,8 +343,8 @@ label{font-size:12px;color:#666;display:block;margin-bottom:3px;}
     </div>
     <div id="imp-hint-amt" class="hint" style="display:none">
       直接從<b>預算書／詳細價目表</b>複製「項目名稱＋金額」欄（可含項次）貼上。
-      比重％依金額占比自動計算並歸整至 100%。匯入後所有工項預設同起訖節點（1→2），
-      請再依施工順序調整 從/到/天數。
+      比重％依金額占比自動計算並歸整至 100%，匯入至<b>契約工項（桿狀圖）</b>。
+      ADM 網圖的排程作業（實體完成物件，如「0K+000~0K+040 箱涵施作」）請於作業清單另行輸入。
       <div style="margin-top:6px;display:flex;align-items:center;gap:8px">
         <span>預設工期(天)：</span>
         <input type="number" id="imp-dur" value="200" min="1" style="width:80px;padding:4px 6px;border:1px solid #ccc;border-radius:4px">
@@ -396,6 +413,24 @@ var acts=[
   {f:6,t:7,d:0, w:0, n:'虛作業'},
   {f:5,t:7,d:8, w:15,n:'雜項工程'},
 ];
+var cItems=[];
+function renderCItems(){
+  var tb=document.getElementById('cbody');if(!tb)return;
+  tb.innerHTML='';
+  cItems.forEach(function(c,i){
+    var tr=document.createElement('tr');
+    tr.innerHTML=
+      '<td><input type="number" value="'+(c.s||0)+'" min="0" onchange="cItems['+i+'].s=+this.value;calculate()"></td>'+
+      '<td><input type="number" value="'+c.d+'" min="1" onchange="cItems['+i+'].d=+this.value;calculate()"></td>'+
+      '<td><input type="number" value="'+c.w+'" min="0" max="100" step="0.01" onchange="cItems['+i+'].w=+this.value;calculate()"></td>'+
+      '<td><input type="text" value="'+escH(c.n)+'" onchange="cItems['+i+'].n=this.value;calculate()"></td>'+
+      '<td style="text-align:center;color:#c0392b;cursor:pointer" onclick="delCItem('+i+')">×</td>';
+    tb.appendChild(tr);
+  });
+}
+function addCItem(){cItems.push({n:'契約工項',s:0,d:_totalDur||100,w:0});renderCItems();calculate();}
+function delCItem(i){cItems.splice(i,1);renderCItems();calculate();}
+function clearCItems(){if(cItems.length&&!confirm('確定清空契約工項？桿狀圖將改回顯示排程作業。'))return;cItems=[];renderCItems();calculate();}
 var nm={};
 var _chain=[];
 var _totalDur=1;
@@ -685,8 +720,16 @@ function redraw(){
   var ctx=cv.getContext('2d');
 
   /* Determine gantt acts */
-  var gActs=acts.filter(function(a){return a.d>0&&a.n&&a.n!=='虛作業'&&nm[a.f]&&nm[a.t];});
-  gActs.sort(function(a,b){return nm[a.f].ES-nm[b.f].ES;});
+  var gActs;
+  if(cItems.length){
+    gActs=cItems.filter(function(c){return c.d>0&&c.n;}).map(function(c){
+      return {n:c.n,d:c.d,w:c.w,crit:false,_c:1,_s:+c.s||0};
+    });
+    gActs.sort(function(a,b){return a._s-b._s||b.d-a.d;});
+  }else{
+    gActs=acts.filter(function(a){return a.d>0&&a.n&&a.n!=='虛作業'&&nm[a.f]&&nm[a.t];});
+    gActs.sort(function(a,b){return nm[a.f].ES-nm[b.f].ES;});
+  }
 
   /* Compute canvas width */
   var W=100;
@@ -1059,7 +1102,8 @@ function drawGantt(ctx,W,gActs,gTop,gBot){
   ctx.save();ctx.fillStyle='rgba(11,31,58,0.85)';ctx.fillRect(0,gTop,W,24);
   ctx.font='bold 12.5px sans-serif';ctx.fillStyle='#e0bf6e';
   ctx.textAlign='left';ctx.textBaseline='middle';
-  ctx.fillText('▶ 施工進度桿狀圖',8,gTop+12);ctx.restore();
+  var _hasC=gActs.length&&gActs[0]._c;
+  ctx.fillText(_hasC?'▶ 施工進度桿狀圖（契約工項）':'▶ 施工進度桿狀圖',8,gTop+12);ctx.restore();
 
   /* Vertical gridlines at each critical node */
   _chain.forEach(function(id){
@@ -1071,8 +1115,8 @@ function drawGantt(ctx,W,gActs,gTop,gBot){
 
   gActs.forEach(function(a,row){
     var y=gTop+24+row*GRH+3;
-    var x0=timeToX(nm[a.f].ES);
-    var x1=timeToX(nm[a.f].ES+a.d);
+    var x0=a._c?timeToX(a._s):timeToX(nm[a.f].ES);
+    var x1=a._c?timeToX(a._s+a.d):timeToX(nm[a.f].ES+a.d);
     var bw=x1-x0;
     /* Activity name — rendered at a fixed, smaller 12pt (not the shared
        16pt boost) specifically so the full work-item name can show without
@@ -1134,9 +1178,9 @@ function drawGantt(ctx,W,gActs,gTop,gBot){
     ctx.restore();
     /* Bar */
     var isCrit=a.crit;
-    ctx.fillStyle=isCrit?'rgba(192,0,0,0.78)':'rgba(34,85,170,0.55)';
+    ctx.fillStyle=a._c?'rgba(201,161,74,0.72)':(isCrit?'rgba(192,0,0,0.78)':'rgba(34,85,170,0.55)');
     ctx.fillRect(x0,y,Math.max(bw,4),GRH-6);
-    ctx.strokeStyle=isCrit?'#a00':'#1a3d8a';
+    ctx.strokeStyle=a._c?'#9a7b2a':(isCrit?'#a00':'#1a3d8a');
     ctx.lineWidth=1;ctx.strokeRect(x0,y,Math.max(bw,4),GRH-6);
     /* Duration label inside bar */
     if(bw>42){
@@ -1445,12 +1489,19 @@ function doImport(){
 
   /* Build sequential ADM nodes: 1→2→3→...→n+1 */
   if(amtMode){
-    acts=parsed.map(function(p){ return{f:1, t:2, d:p.d, w:p.w, n:p.n}; });
-  }else{
-    acts=parsed.map(function(p,i){
-      return{f:i+1, t:i+2, d:p.d, w:p.w, n:p.n};
-    });
+    /* 預算表 → 契約工項（桿狀圖），不動 ADM 排程作業 */
+    cItems=parsed.map(function(p){ return{n:p.n, s:0, d:p.d, w:p.w}; });
+    renderCItems();
+    renderActs();
+    calculate();
+    document.getElementById('import-msg').style.color='var(--green)';
+    document.getElementById('import-msg').textContent='✔ 匯入 '+parsed.length+' 筆契約工項（桿狀圖）。比重已依金額歸整至 100%。ADM 排程作業請於上方另行輸入。';
+    setTimeout(closeImport,1800);
+    return;
   }
+  acts=parsed.map(function(p,i){
+    return{f:i+1, t:i+2, d:p.d, w:p.w, n:p.n};
+  });
 
   /* Reset node positions */
   nm={};_chain=[];actualData=[];estimData=[];
