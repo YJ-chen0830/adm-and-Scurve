@@ -232,6 +232,7 @@ label{font-size:12px;color:#666;display:block;margin-bottom:3px;}
         <button class="cbtn" onclick="calculate()">▶ 計算</button>
       </div>
       <div id="w-warn" style="font-size:11px;color:#c66;margin-top:4px;min-height:14px"></div>
+      <div id="net-warn" style="font-size:11px;color:#c0392b;margin-top:2px;line-height:1.5"></div>
     </div>
 
     <div>
@@ -471,9 +472,16 @@ function renderActs(){
 function addAct(){acts.push({f:1,t:2,d:0,w:0,n:'虛作業'});renderActs();}
 function delAct(i){acts.splice(i,1);renderActs();calculate();}
 function checkW(){
-  var s=acts.reduce(function(a,b){return a+(+b.w||0);},0);
-  document.getElementById('w-warn').textContent=
-    Math.abs(s-100)>0.1?'⚠ 比重合計 '+s.toFixed(1)+'% (需100%)':'✔ 比重合計 100%';
+  var el=document.getElementById('w-warn');
+  if(cItems.length){
+    var cs=cItems.reduce(function(a,b){return a+(+b.w||0);},0);
+    el.textContent=Math.abs(cs-100)>0.1
+      ?'⚠ 契約工項比重合計 '+cs.toFixed(1)+'%（需100%）— S曲線依契約工項計算，作業清單免填比重'
+      :'✔ S曲線依契約工項計算（合計100%），作業清單免填比重';
+  }else{
+    var s=acts.reduce(function(a,b){return a+(+b.w||0);},0);
+    el.textContent=Math.abs(s-100)>0.1?'⚠ 比重合計 '+s.toFixed(1)+'% (需100%)':'✔ 比重合計 100%';
+  }
 }
 
 /* ════════════════════════════════════════════════════════
@@ -494,7 +502,20 @@ function calculate(){
       var v=nm[a.f].ES+a.d;if(v>nm[a.t].ES){nm[a.t].ES=v;chg=true;}
     });}
   var endId=+Object.keys(nm).reduce(function(a,b){return nm[a].ES>=nm[b].ES?a:b;});
-  nm[endId].LS=nm[endId].ES;
+  var T=nm[endId].ES;
+  /* 所有匯點（無後續作業之節點）LS＝工期終點；懸空節點提示改用虛作業併入 */
+  var hasSucc={};acts.forEach(function(a){hasSucc[+a.f]=true;});
+  var dangling=[];
+  Object.keys(nm).forEach(function(id){
+    if(!hasSucc[+id]){
+      nm[id].LS=T;
+      if(+id!==endId)dangling.push(id);
+    }
+  });
+  var nw=document.getElementById('net-warn');
+  if(nw)nw.textContent=dangling.length
+    ?'⚠ 節點 '+dangling.join('、')+' 無後續作業（懸空）。建議加一筆天數 0 的虛作業併入後續節點，浮時計算才正確。'
+    :'';
   chg=true;it=0;
   while(chg&&it++<600){chg=false;
     acts.forEach(function(a){
@@ -669,6 +690,16 @@ function calcPlanned(){
   var P=Math.max(4,Math.min(30,+document.getElementById('periods').value||12));
   var pLen=_totalDur/P;
   var per=new Array(P).fill(0);
+  if(cItems.length){
+    /* 契約工項模式：S 曲線依契約工項比重（各自時段均攤），ADM 作業免填比重 */
+    cItems.forEach(function(c){
+      if(!c.w||!c.d)return;
+      var wPD=c.w/c.d,s0=+c.s||0;
+      for(var d=0;d<c.d;d++){
+        var p=Math.min(Math.max(0,Math.floor((s0+d)/pLen)),P-1);per[p]+=wPD;
+      }
+    });
+  }else{
   acts.forEach(function(a){
     if(!nm[a.f]||!nm[a.t]||!a.w||!a.d)return;
     var wPD=a.w/a.d,s=nm[a.f].ES;
@@ -676,6 +707,7 @@ function calcPlanned(){
       var p=Math.min(Math.floor((s+d)/pLen),P-1);per[p]+=wPD;
     }
   });
+  }
   var data=[0],labs=['0'],cum=0;
   for(var i=0;i<P;i++){cum+=per[i];
     data.push(+Math.min(cum,100).toFixed(2));
