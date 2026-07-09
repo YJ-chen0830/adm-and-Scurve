@@ -39,6 +39,7 @@ label{font-size:12px;color:#666;display:block;margin-bottom:3px;}
 #atbl input[type=number],#ctbl input[type=number]{-moz-appearance:textfield;appearance:textfield;}
 #atbl input[type=number]::-webkit-outer-spin-button,#atbl input[type=number]::-webkit-inner-spin-button,#ctbl input[type=number]::-webkit-outer-spin-button,#ctbl input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
 #atbl input:focus,#ctbl input:focus{outline:1px solid var(--gold);border-radius:2px;background:#fffde7;}
+#atbl.no-w th:nth-child(4),#atbl.no-w td:nth-child(4){display:none;}
 #atbl input:focus{outline:1px solid var(--gold);border-radius:2px;background:#fffde7;}
 .dbtn{background:none;border:none;color:#c44;cursor:pointer;font-size:12px;padding:2px 4px;width:100%;}
 .abtn{padding:8px;background:var(--navy);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12.5px;font-weight:600;flex:1;}
@@ -473,6 +474,8 @@ function addAct(){acts.push({f:1,t:2,d:0,w:0,n:'虛作業'});renderActs();}
 function delAct(i){acts.splice(i,1);renderActs();calculate();}
 function checkW(){
   var el=document.getElementById('w-warn');
+  var at=document.getElementById('atbl');
+  if(at)at.classList.toggle('no-w',cItems.length>0);
   if(cItems.length){
     var cs=cItems.reduce(function(a,b){return a+(+b.w||0);},0);
     el.textContent=Math.abs(cs-100)>0.1
