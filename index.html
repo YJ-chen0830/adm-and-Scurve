@@ -769,7 +769,7 @@ function redraw(){
   W=Math.max(W,800);
 
   /* Section Y positions */
-  var admMinY=ADM_CY-VOFF-R-36,admMaxY=ADM_CY+VOFF+R+40;
+  var admMinY=ADM_CY-VOFF-R-70,admMaxY=ADM_CY+VOFF+R+40;
   var admTop=Math.max(20,-admMinY+20);           // shifts everything down if branches go too high
   var admBot=admTop+(admMaxY-admMinY);
   var gTop=admBot+GAP+16;
@@ -811,10 +811,10 @@ function redraw(){
 function drawAdm(ctx,W,yBase,admTop,admBot){
   /* Header label */
   ctx.save();ctx.fillStyle='rgba(11,31,58,0.85)';
-  ctx.fillRect(0,yBase-2,W,24);
+  ctx.fillRect(0,6,W,24);
   ctx.font='bold 12.5px sans-serif';ctx.fillStyle='#e0bf6e';
   ctx.textAlign='left';ctx.textBaseline='middle';
-  ctx.fillText('▶ ADM 進度網狀圖',8,yBase+10);ctx.restore();
+  ctx.fillText('▶ ADM 進度網狀圖',8,18);ctx.restore();
 
   /* Right-side percentage axis (secondary), for S-curve overlay — drawn first so nodes/arrows stay on top */
   var pTop=admTop+24+30,pBot=admBot-6;
