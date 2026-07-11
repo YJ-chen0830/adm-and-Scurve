@@ -93,6 +93,11 @@ label{font-size:12px;color:#666;display:block;margin-bottom:3px;}
 .ibtn.cl{background:#eee;color:#666;}
 .ibtn:hover{filter:brightness(1.08);}
 #import-msg{font-size:11.5px;color:var(--red);min-height:14px;margin-top:5px;}
+details.proc{margin-top:10px;border:1px solid var(--line);border-radius:8px;background:#fafaf8;overflow:hidden;}
+details.proc summary{cursor:pointer;padding:8px 12px;font-weight:700;font-size:12px;color:var(--navy);user-select:none;list-style:none;display:flex;align-items:center;gap:6px;}
+details.proc summary::before{content:"▶";font-size:9px;transition:transform .2s;}
+details[open].proc summary::before{transform:rotate(90deg);}
+details.proc pre{margin:0;padding:10px 12px 14px;font-family:"Courier New",monospace;font-size:10.5px;line-height:1.8;white-space:pre-wrap;color:#2c3e50;border-top:1px solid var(--line);max-height:400px;overflow-y:auto;}
 /* Print header/footer — hidden on screen */
 #print-hdr{display:none;}
 #print-ftr{display:none;}
@@ -265,6 +270,10 @@ label{font-size:12px;color:#666;display:block;margin-bottom:3px;}
         <thead><tr><th>節點</th><th>ES</th><th>LS</th><th>浮時</th><th>要徑</th></tr></thead>
         <tbody id="nbody"></tbody>
       </table>
+      <details class="proc" id="proc" style="display:none">
+        <summary>📋 計算過程（CPM 前進/反算）</summary>
+        <pre id="proc-text"></pre>
+      </details>
     </div>
 
     <div class="lgd">
@@ -537,6 +546,7 @@ function calculate(){
   _totalDur=nm[chain[chain.length-1]].ES||1;
   autoLayout(chain);
   renderNodeTable();
+  renderProcText();
   checkW();
   renderProgressTable();
   redraw();
@@ -624,6 +634,53 @@ function renderNodeTable(){
       '<td>'+n.float+'</td><td>'+(n.float===0?'★':'')+'</td>';
     tb.appendChild(tr);
   });
+}
+
+function renderProcText(){
+  var proc=document.getElementById('proc');
+  var ids=Object.keys(nm).map(Number);
+  if(!ids.length||!acts.length){proc.style.display='none';return;}
+  var T=nm[+Object.keys(nm).reduce(function(a,b){return nm[a].ES>=nm[b].ES?a:b;})].ES;
+  var byId={};ids.forEach(function(id){byId[id]=nm[id];});
+
+  var lines=[];
+  lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  lines.push('  CPM 網圖計算過程（前進/反算法）');
+  lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  lines.push('');
+  lines.push('【輸入】作業清單（自→至，天數，工項名稱）');
+  acts.forEach(function(a){ lines.push('  '+a.f+' → '+a.t+'：'+(a.n||'')+'，天數='+a.d); });
+  lines.push('');
+  lines.push('【一】前進計算 Forward Pass（求 ES 最早開始時間，ES(起點)=0）');
+  ids.slice().sort(function(a,b){return byId[a].ES-byId[b].ES;}).forEach(function(id){
+    var incoming=acts.filter(function(a){return +a.t===id;});
+    if(!incoming.length){ lines.push('  ES('+id+') = 0（起始節點，無前置作業）'); return; }
+    var terms=incoming.map(function(a){ return 'ES('+a.f+')+d = '+byId[a.f].ES+'+'+a.d+' = '+(byId[a.f].ES+a.d); });
+    lines.push('  ES('+id+') = max[ '+terms.join(' ， ')+' ] = '+byId[id].ES);
+  });
+  lines.push('');
+  lines.push('【二】反算 Backward Pass（求 LS 最晚開始時間，LS(終點)=T='+T+'）');
+  ids.slice().sort(function(a,b){return byId[b].ES-byId[a].ES;}).forEach(function(id){
+    var outgoing=acts.filter(function(a){return +a.f===id;});
+    if(!outgoing.length){ lines.push('  LS('+id+') = T = '+T+'（終點/匯點節點）'); return; }
+    var terms=outgoing.map(function(a){ return 'LS('+a.t+')−d = '+byId[a.t].LS+'−'+a.d+' = '+(byId[a.t].LS-a.d); });
+    lines.push('  LS('+id+') = min[ '+terms.join(' ， ')+' ] = '+byId[id].LS);
+  });
+  lines.push('');
+  lines.push('【三】浮時（Total Float = LS − ES）與要徑判定');
+  ids.slice().sort(function(a,b){return a-b;}).forEach(function(id){
+    lines.push('  節點 '+id+'：浮時 = '+byId[id].LS+' − '+byId[id].ES+' = '+byId[id].float+(byId[id].float===0?'　★ 要徑節點':''));
+  });
+  lines.push('');
+  lines.push('  要徑（Critical Path）：'+(_chain&&_chain.length?_chain.join(' → '):'（尚未計算）'));
+  lines.push('  總工期 T = '+T+' 天');
+  lines.push('');
+  lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  lines.push('  註：實作採迭代鬆弛法收斂至上述固定點解，與逐節點手算之前進/反算結果等價。');
+  lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+  document.getElementById('proc-text').textContent=lines.join('\n');
+  proc.style.display='';
 }
 
 /* ════════════════════════════════════════════════════════
