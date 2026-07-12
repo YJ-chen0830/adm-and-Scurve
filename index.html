@@ -202,7 +202,7 @@ details.proc pre{margin:0;padding:10px 12px 14px;font-family:"Courier New",monos
     <div>
       <div class="sec">工程資訊</div>
       <label>工程名稱</label>
-      <input class="inp" id="p-name" value="新社區協成里苗圃橋附近淹水改善工程" oninput="redraw()">
+      <input class="inp" id="pj-name" value="新社區協成里苗圃橋附近淹水改善工程" oninput="redraw()">
       <div class="row2" style="margin-top:5px">
         <div><label>工程編號</label><input class="inp" id="p-num" value="01-00"></div>
         <div><label>今日日曆天</label>
@@ -550,6 +550,13 @@ function calculate(){
   checkW();
   renderProgressTable();
   redraw();
+
+  if(window.JRH && JRH.saveOutput){
+    var scheduleActs=acts.filter(function(a){return a.d>0;}).map(function(a){
+      return {name:a.n, start:nm[a.f].ES, duration:a.d};
+    });
+    if(scheduleActs.length)JRH.saveOutput({activities:scheduleActs});
+  }
 }
 
 function findCritChain(){
@@ -858,7 +865,7 @@ function redraw(){
 
   /* Watermark */
   ctx.save();ctx.fillStyle='rgba(0,0,0,.06)';ctx.font='13px sans-serif';
-  ctx.fillText(document.getElementById('p-name').value||'工程名稱',ML+4,H-8);ctx.restore();
+  ctx.fillText(document.getElementById('pj-name').value||'工程名稱',ML+4,H-8);ctx.restore();
 
   /* Expose section y-bounds so print mode can crop each chart onto its own A3 page */
   window._sectionBounds={W:W,H:H,adm0:0,adm1:gTop,gantt0:gTop,gantt1:scTop,sc0:scTop,sc1:H,
@@ -1631,7 +1638,7 @@ var _printSnap=null;  // saved canvas snapshot before print scaling
 function fillPrintHeader(){
   var d=new Date();
   var ds=d.getFullYear()+'/'+(d.getMonth()+1).toString().padStart(2,'0')+'/'+d.getDate().toString().padStart(2,'0');
-  document.getElementById('ph-name').textContent=document.getElementById('p-name').value||'—';
+  document.getElementById('ph-name').textContent=document.getElementById('pj-name').value||'—';
   document.getElementById('ph-num').textContent=document.getElementById('p-num').value||'—';
   document.getElementById('ph-date').textContent=ds;
   document.getElementById('ph-chain').textContent='要徑：'+_chain.join(' → ');
