@@ -576,7 +576,7 @@ function calculate(){
     var scheduleActs=acts.filter(function(a){return a.d>0;}).map(function(a){
       return {name:a.n, start:nm[a.f].ES, duration:a.d};
     });
-    if(scheduleActs.length)JRH.saveOutput({activities:scheduleActs});
+    if(scheduleActs.length)JRH.saveOutput({activities:scheduleActs, totalDuration:_totalDur});
   }
 }
 
