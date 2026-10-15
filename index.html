@@ -230,6 +230,20 @@ details.proc pre{margin:0;padding:10px 12px 14px;font-family:"Courier New",monos
           <input class="inp" type="number" id="today-day" placeholder="e.g. 65" oninput="redraw()">
         </div>
       </div>
+      <div class="row2" style="margin-top:5px">
+        <div><label>開工日期（選填）</label>
+          <input class="inp" type="date" id="start-date" oninput="redraw()" title="填了之後，時間軸會加上日期（日曆天，開工日當天算第 1 天）">
+        </div>
+        <div><label>顯示比例</label>
+          <select class="inp" id="zoom-mode" onchange="resetLayout()">
+            <option value="fit">適合畫面寬度</option>
+            <option value="clear">清晰（原比例，可橫向捲動）</option>
+          </select>
+        </div>
+      </div>
+      <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;cursor:pointer;">
+        <input type="checkbox" id="adm-scurve" onchange="try{localStorage.setItem('jrh_adm_scurve_on',this.checked?'1':'')}catch(e){};redraw()"> 網狀圖上疊加預定 S 曲線
+      </label>
     </div>
 
     <div>
@@ -423,9 +437,10 @@ var R     = 36;    // node radius
 var ADM_CY= 200;   // critical-path Y
 var VOFF  = 155;   // branch vertical offset
 var XSTEP = 235;   // min node spacing
+var FIT_MIN_GAP = 2*36+28; // 「適合畫面寬度」時相鄰要徑節點最小間距（兩個半徑 + 留白）
 var GRH   = 30;    // gantt row height
 var SC_H  = 215;   // s-curve height (excl. time axis)
-var TIME_H= 44;    // time axis height
+var TIME_H= 58;    // time axis height (day + date rows)
 var GAP   = 36;    // section gap
 var PRINT_ENLARGE = 2.3; // how much bigger circles/text render at print time vs. the raw horizontal-compression scale (keeps them legible without overlapping compressed node spacing)
 var PRINT_SS = 1;  // supersample factor used by the current print render pass (1 on screen)
@@ -612,10 +627,28 @@ function autoLayout(chain){
   if(!isFinite(minDayGap)||minDayGap<=0)minDayGap=1;
   var pxPerDay=Math.max(minGap/minDayGap,(n*XSTEP)/totalDur);
 
+  if(zoomMode()==='fit'){
+    /* 適合畫面寬度：整個工期攤在目前可見寬度內，時間軸照比例；只保證相鄰
+       要徑節點的圓圈不重疊（FIT_MIN_GAP），擠不下時才超出畫面寬度。
+       時間→X 是逐段線性插值（timeToX），所以桿狀圖與 S 曲線會跟著對齊。 */
+    var wrap=document.getElementById('cv-wrap');
+    var avail=Math.max(600,(wrap?wrap.clientWidth:1000)-4);
+    var fitPx=(avail-ML-MR-R-60)/totalDur; /* 對應 redraw() 的 W = 最右節點 x + R + MR + 60 */
+    var prevX=-Infinity;
+    chain.forEach(function(id){
+      if(!nm[id]._fixed){
+        nm[id].x=Math.round(Math.max(ML+nm[id].ES*fitPx,prevX+FIT_MIN_GAP));
+        nm[id].y=ADM_CY;
+      }
+      prevX=nm[id].x;
+      nm[id]._crit=true;
+    });
+  }else{
   chain.forEach(function(id,i){
     if(!nm[id]._fixed){nm[id].x=Math.round(ML+nm[id].ES*pxPerDay);nm[id].y=ADM_CY;}
     nm[id]._crit=true;
   });
+  }
 
   var tog=true;
   Object.values(nm).filter(function(n){return!n._crit;}).forEach(function(n){
@@ -645,6 +678,30 @@ function bkt(nid,critSet,dir,chain){
   return dir==='pred'?(nm[chain[0]]?nm[chain[0]].x:ML)
     :(nm[chain[chain.length-1]]?nm[chain[chain.length-1]].x:ML+_chain.length*XSTEP);
 }
+
+/* jrh-core 的自動儲存只處理文字／下拉欄位（存 el.value），checkbox 自己記 */
+(function(){try{var ck=document.getElementById('adm-scurve');if(ck)ck.checked=localStorage.getItem('jrh_adm_scurve_on')==='1';}catch(e){}})();
+
+function zoomMode(){var el=document.getElementById('zoom-mode');return el?el.value:'fit';}
+
+/* 開工日期（日曆天）：開工日當天算第 1 天，所以「第 t 天結束」= 開工日 + (t−1) 天；
+   t=0 是開工當天的開始。顯示為民國年 YYY/MM/DD。 */
+function dayToDateLabel(t){
+  var el=document.getElementById('start-date');
+  if(!el||!el.value)return '';
+  var p=el.value.split('-');
+  var d=new Date(+p[0],+p[1]-1,+p[2]);
+  d.setDate(d.getDate()+Math.max(0,t-1));
+  return (d.getFullYear()-1911)+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getDate()).padStart(2,'0');
+}
+
+/* 視窗大小改變時，「適合畫面寬度」模式重新排版（拖曳固定過的節點不動） */
+var _fitResizeTimer=null;
+window.addEventListener('resize',function(){
+  if(zoomMode()!=='fit'||!_chain||!_chain.length)return;
+  clearTimeout(_fitResizeTimer);
+  _fitResizeTimer=setTimeout(function(){autoLayout(_chain);redraw();},200);
+});
 
 function resetLayout(){
   Object.values(nm).forEach(function(n){n.x=0;n.y=0;n._fixed=false;n._crit=false;});
@@ -907,8 +964,9 @@ function drawAdm(ctx,W,yBase,admTop,admBot){
   /* Right-side percentage axis (secondary), for S-curve overlay — drawn first so nodes/arrows stay on top */
   var pTop=admTop+24+30,pBot=admBot-6;
   function aY(pct){ return pTop+(1-pct/100)*(pBot-pTop); }
+  var showAdmCurve=(document.getElementById('adm-scurve')||{}).checked;
   ctx.save();
-  [0,20,40,60,80,100].forEach(function(p){
+  (showAdmCurve?[0,20,40,60,80,100]:[]).forEach(function(p){
     var y=aY(p);
     ctx.beginPath();ctx.moveTo(ML,y);ctx.lineTo(W-MR,y);
     ctx.strokeStyle=p===0||p===100?'rgba(26,110,53,.22)':'rgba(26,110,53,.1)';
@@ -919,11 +977,13 @@ function drawAdm(ctx,W,yBase,admTop,admBot){
   });
   ctx.restore();
 
-  /* Planned S-curve, drawn behind the network so nodes/arrows remain legible */
+  /* Planned S-curve, drawn behind the network so nodes/arrows remain legible.
+     Optional (off by default): on the network it competes with the arrows for
+     attention; the Gantt keeps its overlay, the traditional 預定進度表 format. */
   var pd=calcPlanned();
   var pts=[];
   pd.data.forEach(function(v,i){ pts.push({x:timeToX(i*pd.pLen),y:aY(v)}); });
-  if(pts.length>=2){
+  if(showAdmCurve&&pts.length>=2){
     ctx.save();ctx.strokeStyle='rgba(26,110,53,0.55)';ctx.lineJoin='round';
     strokeCurveNoDistort(ctx,pts,2.2);
     ctx.fillStyle='rgba(26,110,53,0.55)';
@@ -1468,16 +1528,18 @@ function drawTimeAxis(ctx,W,tTop){
     ctx.strokeStyle='#555';ctx.lineWidth=1.5;ctx.stroke();
     ctx.fillStyle='#444';ctx.font='12px sans-serif';
     ctx.textAlign='center';ctx.textBaseline='top';
-    var halfW=ctx.measureText(t+'天').width/2;
+    var dl=dayToDateLabel(t);
+    var halfW=Math.max(ctx.measureText(t+'天').width,dl?ctx.measureText(dl).width:0)/2;
     if(x-halfW>lastRight+12){
       ctx.fillText(t+'天',x,tTop+8);
+      if(dl){ctx.fillStyle='#8a6d1f';ctx.font='11px sans-serif';ctx.fillText(dl,x,tTop+22);}
       lastRight=x+halfW;
     }
   });
 
   /* Center label */
   ctx.fillStyle='#666';ctx.font='12px sans-serif';ctx.textAlign='center';
-  ctx.fillText('工期（天）',ML+(W-ML-MR)/2,tTop+20);
+  ctx.fillText(dayToDateLabel(1)?'工期（日曆天；日期為該日結束，開工日當天算第 1 天）':'工期（天）',ML+(W-ML-MR)/2,tTop+(dayToDateLabel(1)?38:20));
 }
 
 /* ════════════════════════════════════════════════════════
