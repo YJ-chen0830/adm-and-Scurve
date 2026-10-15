@@ -1468,7 +1468,7 @@ function drawAdm(ctx,W,yBase,admTop,admBot){
         if(spec)boxes.push(spec);
       }
     });
-    placeGroupBoxes(ctx,boxes,W,admTop,admBot);
+    placeGroupBoxes(ctx,boxes,W,admTop,admBot,yBase);
   }else{
     /* 分離線條（扇形偏移） */
     var pc={};
@@ -1753,31 +1753,54 @@ function drawGroupArrowLine(ctx,g,yBase){
 }
 
 /* 統一放置標註框：優先放在線上方，重疊時往下推，並夾在圖區內 */
-function placeGroupBoxes(ctx,boxes,W,admTop,admBot){
-  var placed=[];
+function placeGroupBoxes(ctx,boxes,W,admTop,admBot,yBase){
+  /* 同一對節點多個作業的清單框：在錨點上下不同距離、左右稍微平移的候選位置中，
+     挑第一個不蓋到節點、箭線與其他清單框的；找不到時允許壓線（仍不蓋節點），
+     最後才退回原本的上下堆疊放法 */
+  var placed=[],nodeR=[],lineR=[];
   var yMin=admTop+52,yMax=admBot-10;
+  yBase=yBase||0;
+  Object.values(nm).forEach(function(n){var cx=n.x,cy=n.y+yBase;nodeR.push({x0:cx-R-4,x1:cx+R+4,y0:cy-R-4,y1:cy+R+4});});
+  var seenK={};
+  acts.forEach(function(a){
+    var k=(+a.f)+'-'+(+a.t);if(seenK[k]||!nm[a.f]||!nm[a.t])return;seenK[k]=true;
+    var pts=routeFor(+a.f,+a.t,0,yBase);
+    for(var i=0;i<pts.length-1;i++){var A=pts[i],B=pts[i+1];
+      lineR.push({x0:Math.min(A.x,B.x)-2,x1:Math.max(A.x,B.x)+2,y0:Math.min(A.y,B.y)-2,y1:Math.max(A.y,B.y)+2});}
+  });
+  function hitAny(r,list){for(var i=0;i<list.length;i++){var q=list[i];if(r.x0<q.x1&&r.x1>q.x0&&r.y0<q.y1&&r.y1>q.y0)return true;}return false;}
   boxes.sort(function(a,b){return a.mx-b.mx;});
+  window._admGroupBoxes=[];
   boxes.forEach(function(b){
-    var x=Math.max(ML+8+b.boxW/2,Math.min(W-MR-8-b.boxW/2,b.mx));
-    var y=b.my-b.boxH-16; /* 先試線上方 */
-    if(y<yMin)y=b.my+16;  /* 不行放下方 */
-    function rect(yy){return {x0:x-b.boxW/2,x1:x+b.boxW/2,y0:yy,y1:yy+b.boxH};}
-    var guard=0;
-    while(guard++<60){
-      var r=rect(y),hit=null;
-      for(var i=0;i<placed.length;i++){
-        var q=placed[i];
-        if(r.x0<q.x1&&r.x1>q.x0&&r.y0<q.y1&&r.y1>q.y0){hit=q;break;}
+    function clampX(x){return Math.max(ML+8+b.boxW/2,Math.min(W-MR-8-b.boxW/2,x));}
+    function rectAt(x,yy){return {x0:x-b.boxW/2,x1:x+b.boxW/2,y0:yy,y1:yy+b.boxH};}
+    var cands=[];
+    [12,30,55,85,120,160].forEach(function(g){
+      [0,-0.6,0.6].forEach(function(f){
+        var x=clampX(b.mx+f*b.boxW);
+        cands.push(rectAt(x,b.my-b.boxH-g),rectAt(x,b.my+g));
+      });
+    });
+    cands=cands.filter(function(r){return r.y0>=yMin&&r.y1<=yMax;});
+    var r=null;
+    for(var i=0;i<cands.length&&!r;i++)if(!hitAny(cands[i],placed)&&!hitAny(cands[i],nodeR)&&!hitAny(cands[i],lineR))r=cands[i];
+    for(var j=0;j<cands.length&&!r;j++)if(!hitAny(cands[j],placed)&&!hitAny(cands[j],nodeR))r=cands[j];
+    if(!r){
+      var x=clampX(b.mx);
+      var y=b.my-b.boxH-16;
+      if(y<yMin)y=b.my+16;
+      var guard=0;
+      while(guard++<60){
+        var rr=rectAt(x,y),hit=null;
+        for(var k=0;k<placed.length;k++){var q=placed[k];if(rr.x0<q.x1&&rr.x1>q.x0&&rr.y0<q.y1&&rr.y1>q.y0){hit=q;break;}}
+        if(!hit)break;
+        y=hit.y1+8;
+        if(y+b.boxH>yMax){y=Math.max(yMin,placed.reduce(function(m,q){return Math.min(m,q.y0);},yMax)-b.boxH-8);break;}
       }
-      if(!hit)break;
-      y=hit.y1+8; /* 往下疊 */
-      if(y+b.boxH>yMax){ /* 底了改往上找 */
-        y=Math.max(yMin,placed.reduce(function(m,q){return Math.min(m,q.y0);},yMax)-b.boxH-8);
-        break;
-      }
+      y=Math.max(yMin,Math.min(yMax-b.boxH,y));
+      r=rectAt(x,y);
     }
-    y=Math.max(yMin,Math.min(yMax-b.boxH,y));
-    var r=rect(y);placed.push(r);
+    placed.push(r);window._admGroupBoxes.push(r);
     if(window._admObstacles)window._admObstacles.push(r);
     /* 背板 */
     ctx.save();
