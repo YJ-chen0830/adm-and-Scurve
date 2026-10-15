@@ -237,6 +237,7 @@ details.proc pre{margin:0;padding:10px 12px 14px;font-family:"Courier New",monos
         <div><label>顯示比例</label>
           <select class="inp" id="zoom-mode" onchange="resetLayout()">
             <option value="fit">適合畫面寬度</option>
+            <option value="even">等距（標註最清楚，時間軸非等比例）</option>
             <option value="clear">清晰（原比例，可橫向捲動）</option>
           </select>
         </div>
@@ -437,7 +438,8 @@ var R     = 36;    // node radius
 var ADM_CY= 200;   // critical-path Y
 var VOFF  = 155;   // branch vertical offset
 var XSTEP = 235;   // min node spacing
-var FIT_MIN_GAP = 2*36+28; // 「適合畫面寬度」時相鄰要徑節點最小間距（兩個半徑 + 留白）
+var LANE_STEP = 120;             // 第 2 列以後每列再往外推的距離
+var FIT_MIN_GAP = 2*36+70; // 相鄰要徑節點最小間距：兩個半徑＋約 4～5 個字的作業名稱
 var GRH   = 30;    // gantt row height
 var SC_H  = 215;   // s-curve height (excl. time axis)
 var TIME_H= 58;    // time axis height (day + date rows)
@@ -627,41 +629,487 @@ function autoLayout(chain){
   if(!isFinite(minDayGap)||minDayGap<=0)minDayGap=1;
   var pxPerDay=Math.max(minGap/minDayGap,(n*XSTEP)/totalDur);
 
-  if(zoomMode()==='fit'){
+  if(zoomMode()==='even'){
+    /* 等距：要徑節點平均分配可見寬度，每條要徑箭線的標註空間相同。時間軸
+       在各要徑節點處標示天數／日期，桿狀圖與 S 曲線經 timeToX 逐段對齊。 */
+    var wrapE=document.getElementById('cv-wrap');
+    var availE=Math.max(600,(wrapE?wrapE.clientWidth:1000)-4);
+    var stepE=Math.max(FIT_MIN_GAP,(availE-ML-MR-R-60)/Math.max(1,n-1));
+    chain.forEach(function(id,i){
+      if(!nm[id]._fixed){nm[id].x=Math.round(ML+i*stepE);nm[id].y=ADM_CY;}
+      nm[id]._crit=true;
+    });
+  }else if(zoomMode()==='fit'){
     /* 適合畫面寬度：整個工期攤在目前可見寬度內，時間軸照比例；只保證相鄰
        要徑節點的圓圈不重疊（FIT_MIN_GAP），擠不下時才超出畫面寬度。
        時間→X 是逐段線性插值（timeToX），所以桿狀圖與 S 曲線會跟著對齊。 */
     var wrap=document.getElementById('cv-wrap');
     var avail=Math.max(600,(wrap?wrap.clientWidth:1000)-4);
-    var fitPx=(avail-ML-MR-R-60)/totalDur; /* 對應 redraw() 的 W = 最右節點 x + R + MR + 60 */
-    var prevX=-Infinity;
-    chain.forEach(function(id){
-      if(!nm[id]._fixed){
-        nm[id].x=Math.round(Math.max(ML+nm[id].ES*fitPx,prevX+FIT_MIN_GAP));
-        nm[id].y=ADM_CY;
-      }
-      prevX=nm[id].x;
-      nm[id]._crit=true;
-    });
+    var limit=avail-R-MR-60; /* 對應 redraw() 的 W = 最右節點 x + R + MR + 60 */
+    var fitPx=(limit-ML)/totalDur;
+    /* 最小間距、替非要徑節點保留的空間都會把右邊往外推；排完若超出畫面，
+       就把時間比例縮小重排（最多幾次），直到放得進或已無法再縮 */
+    for(var tries=0;tries<8;tries++){
+      var prevX=-Infinity;
+      chain.forEach(function(id){
+        if(!nm[id]._fixed){
+          nm[id].x=Math.round(Math.max(ML+nm[id].ES*fitPx,prevX+FIT_MIN_GAP));
+          nm[id].y=ADM_CY;
+        }
+        prevX=nm[id].x;
+        nm[id]._crit=true;
+      });
+      reserveNonCritSpace(chain);
+      layoutNonCrit(chain);
+      var maxX=Object.values(nm).reduce(function(m,n2){return Math.max(m,n2.x);},0);
+      if(maxX<=limit||fitPx<0.05)break;
+      var timePart=nm[chain[chain.length-1]].ES*fitPx;
+      var over=maxX-limit;
+      fitPx=Math.max(0.04,fitPx*Math.max(0.3,(timePart-over)/Math.max(1,timePart)));
+    }
+    document.getElementById('adm-info').textContent=
+      '要徑 '+chain.join('→')+'　工期 '+_totalDur+'天';
+    return;
   }else{
+  var prevC=-Infinity;
   chain.forEach(function(id,i){
-    if(!nm[id]._fixed){nm[id].x=Math.round(ML+nm[id].ES*pxPerDay);nm[id].y=ADM_CY;}
+    /* 要徑上有 0 天的虛作業時，前後兩個節點同一天，仍要保留最小間距 */
+    if(!nm[id]._fixed){nm[id].x=Math.round(Math.max(ML+nm[id].ES*pxPerDay,prevC+FIT_MIN_GAP));nm[id].y=ADM_CY;}
+    prevC=nm[id].x;
     nm[id]._crit=true;
   });
   }
 
-  var tog=true;
-  Object.values(nm).filter(function(n){return!n._crit;}).forEach(function(n){
-    if(n._fixed)return;
-    var px=bkt(n.id,critSet,'pred',chain);
-    var sx=bkt(n.id,critSet,'succ',chain);
-    n.x=Math.round((px+sx)/2);
-    n.y=tog?ADM_CY-VOFF:ADM_CY+VOFF;
-    tog=!tog;
-  });
+  reserveNonCritSpace(chain);
+  layoutNonCrit(chain);
 
   document.getElementById('adm-info').textContent=
     '要徑 '+chain.join('→')+'　工期 '+_totalDur+'天';
+}
+
+/* ════════════════════════════════════════════════════════
+   非要徑節點位置、分列與箭線路由
+   ════════════════════════════════════════════════════════
+   原則（目標是任兩條箭線不共線重疊、箭線不穿過別的節點）：
+   1. 非要徑節點放在最早開始時間（ES）對應的位置，並保證在前置節點右側、
+      後續要徑節點左側，且不落在要徑節點正上／下方（那裡有垂直線進出）。
+   2. 單純串接的非要徑節點（A→B→C 每個只有一進一出）視為一組，放在同一列。
+   3. 每組（以及要徑上不相鄰兩節點的直連作業）在水平方向佔用一段區間
+      ＝組內節點與其所有前後節點的 x 範圍；同一列的區間不重疊，由短到長、
+      由內（靠近要徑）往外分配，所以水平線段永遠不會共線、不會穿過同列節點。
+   4. 同一個節點上方（或下方）有多條線進出時，依「進來的在左、出去的在右、
+      越外側的列越靠近中間」錯開進出位置，垂直線段互不重疊、也不互相穿越。 */
+var MIN_DX = 2*R+70;      // 非要徑節點與前置節點的最小水平距離（含不同列之間轉折線的空間）
+var CRIT_CLEAR = R+(R-8)+6; // 非要徑節點距離要徑節點的最小水平距離：上下進出的垂直線最多偏離要徑節點中心 R−8，再加節點半徑
+var CRIT_CLEAR_WIDE = 2*R+50; // 空間夠時用的較大距離（另一側的線要能在兩者之間穿過要徑）
+var ATTACH_STEP = 13;     // 同一節點多條線進出的錯開距離
+
+function laneYOf(l){return ADM_CY+(l<0?-1:1)*(VOFF+(Math.abs(l)-1)*LANE_STEP);}
+
+/* 兩個要徑節點之間若有 k 個非要徑節點串在一條路徑上，兩者至少要相距
+   (k+1)×MIN_DX，否則中間的節點會被擠到前後節點上。不足時把這段要徑的
+   間距平均拉開（後面的要徑節點跟著右移）；有拖曳固定過的要徑節點時不動。 */
+function reserveNonCritSpace(chain){
+  if(chain.some(function(id){return nm[id]._fixed;}))return;
+  var critIdx={};chain.forEach(function(id,i){critIdx[id]=i;});
+  var preds={};
+  acts.forEach(function(a){if(nm[a.f]&&nm[a.t])(preds[+a.t]=preds[+a.t]||[]).push(+a.f);});
+  /* cnt[n][i]：從要徑節點 chain[i] 經過非要徑節點走到 n，路上最多幾個非要徑節點（含 n） */
+  var cnt={};
+  var order=Object.values(nm).filter(function(n){return critIdx[n.id]===undefined;})
+    .sort(function(a,b){return a.ES-b.ES||a.id-b.id;});
+  for(var pass=0;pass<3;pass++)order.forEach(function(n){
+    var m=cnt[n.id]=cnt[n.id]||{};
+    (preds[n.id]||[]).forEach(function(p){
+      if(critIdx[p]!==undefined){m[critIdx[p]]=Math.max(m[critIdx[p]]||0,1);}
+      else Object.keys(cnt[p]||{}).forEach(function(i){m[i]=Math.max(m[i]||0,cnt[p][i]+1);});
+    });
+  });
+  var reqs=[];
+  acts.forEach(function(a){
+    var t=+a.t,f=+a.f;
+    if(critIdx[t]===undefined||critIdx[f]!==undefined||!cnt[f])return;
+    Object.keys(cnt[f]).forEach(function(i){
+      i=+i;if(i<critIdx[t])reqs.push({a:i,b:critIdx[t],need:(cnt[f][i]+1)*MIN_DX});
+    });
+  });
+  if(!reqs.length)return;
+  var X=chain.map(function(id){return nm[id].x;});
+  var G=[];for(var i=0;i<X.length-1;i++)G.push(X[i+1]-X[i]);
+  for(var it=0;it<4;it++)reqs.forEach(function(r){
+    var cur=0;for(var k=r.a;k<r.b;k++)cur+=G[k];
+    if(cur<r.need){var extra=(r.need-cur)/(r.b-r.a);for(var k2=r.a;k2<r.b;k2++)G[k2]+=extra;}
+  });
+  var x=X[0];
+  chain.forEach(function(id,i){if(i>0)x+=G[i-1];nm[id].x=Math.round(x);});
+}
+
+/* 非要徑節點不要太靠近任何要徑節點（那裡有上下進出的垂直線）。列出候選位置
+   （原位置、各要徑節點左右兩側），只留「同時離所有要徑節點夠遠」且在前後
+   限制內的，取最接近原位置者。 */
+function clearOfCrit(x,lo,hi,critXs){
+  function ok(v,c){return critXs.every(function(cx){return Math.abs(v-cx)>=c-0.5;});}
+  var cands=[x];
+  critXs.forEach(function(cx){
+    [CRIT_CLEAR_WIDE,CRIT_CLEAR].forEach(function(c){cands.push(cx+c,cx-c);});
+  });
+  /* 依序：較大距離且移動不多 → 最小距離 → 都不行就留在前後限制內（寧可靠近
+     要徑節點，也不要跟前後節點疊在一起） */
+  var tiers=[[CRIT_CLEAR_WIDE,CRIT_CLEAR_WIDE],[CRIT_CLEAR,Infinity]];
+  for(var t=0;t<tiers.length;t++){
+    var c=tiers[t][0],maxMove=tiers[t][1],best=null;
+    cands.forEach(function(v){
+      if(v<lo-0.5||v>hi+0.5||Math.abs(v-x)>maxMove)return;
+      if(!ok(v,c))return;
+      if(best===null||Math.abs(v-x)<Math.abs(best-x))best=v;
+    });
+    if(best!==null)return best;
+  }
+  return x;
+}
+
+function layoutNonCrit(chain){
+  var critSet=new Set(chain);
+  var preds={},succs={};
+  acts.forEach(function(a){
+    if(!nm[a.f]||!nm[a.t])return;
+    var f=+a.f,t=+a.t;
+    if((succs[f]=succs[f]||[]).indexOf(t)<0)succs[f].push(t);
+    if((preds[t]=preds[t]||[]).indexOf(f)<0)preds[t].push(f);
+  });
+  var critXs=chain.map(function(id){return nm[id].x;});
+  var nonCrit=Object.values(nm).filter(function(n){return !critSet.has(n.id);});
+
+  /* 1. x 位置。先由後往前算每個非要徑節點最右可以到哪裡（後面串著幾個非要徑
+     節點，就要替它們留幾個 MIN_DX），避免前面的節點被推太右、後面擠成一團 */
+  /* 依「前置節點一定先處理」的拓撲順序（同時才依 ES、編號）；只按 ES 排序時，
+     0 天虛作業相連的兩個節點 ES 相同，可能後面的先被放置 */
+  var ncIds=new Set(nonCrit.map(function(n){return n.id;}));
+  var indeg={};nonCrit.forEach(function(n){indeg[n.id]=(preds[n.id]||[]).filter(function(p){return ncIds.has(p);}).length;});
+  var ready=nonCrit.filter(function(n){return indeg[n.id]===0;}),topo=[];
+  while(ready.length){
+    ready.sort(function(a,b){return a.ES-b.ES||a.id-b.id;});
+    var cur=ready.shift();topo.push(cur);
+    (succs[cur.id]||[]).forEach(function(s2){if(ncIds.has(s2)&&--indeg[s2]===0)ready.push(nm[s2]);});
+  }
+  if(topo.length<nonCrit.length)topo=nonCrit.slice().sort(function(a,b){return a.ES-b.ES||a.id-b.id;}); /* 有循環時退回原排序 */
+  var hiB={};
+  var rev=topo.slice().reverse();
+  for(var pass=0;pass<3;pass++)rev.forEach(function(n){
+    var h=Infinity;
+    (succs[n.id]||[]).forEach(function(s2){
+      if(critSet.has(s2))h=Math.min(h,nm[s2].x-MIN_DX);
+      else if(hiB[s2]!==undefined)h=Math.min(h,hiB[s2]-MIN_DX);
+    });
+    hiB[n.id]=h;
+  });
+  var placed={};chain.forEach(function(id){placed[id]=true;});
+  topo.forEach(function(n){
+    if(n._fixed){placed[n.id]=true;return;}
+    var lo=-Infinity,hi=Infinity;
+    (preds[n.id]||[]).forEach(function(p){if(placed[p])lo=Math.max(lo,nm[p].x+MIN_DX);});
+    (succs[n.id]||[]).forEach(function(s){if(critSet.has(s))hi=Math.min(hi,nm[s].x-MIN_DX);});
+    if(hiB[n.id]!==undefined)hi=Math.min(hi,hiB[n.id]);
+    var x=timeToX(n.ES);
+    x=(lo>hi)?(lo+hi)/2:Math.min(Math.max(x,lo),hi);
+    x=clearOfCrit(x,lo,hi,critXs);
+    n.x=Math.round(x);placed[n.id]=true;
+  });
+
+  /* 2. 單純串接的非要徑節點成組 */
+  var ncSet=new Set(nonCrit.map(function(n){return n.id;}));
+  function ncPreds(id){return (preds[id]||[]).filter(function(p){return ncSet.has(p);});}
+  function ncSuccs(id){return (succs[id]||[]).filter(function(s){return ncSet.has(s);});}
+  var unitOf={},units=[];
+  nonCrit.slice().sort(function(a,b){return a.x-b.x||a.id-b.id;}).forEach(function(n){
+    if(unitOf[n.id]!==undefined)return;
+    var u=[n.id];unitOf[n.id]=units.length;
+    var cur=n.id;
+    while(!nm[cur]._fixed){
+      /* 只有「目前節點只有一條出去、下一個節點只有一條進來」才併成同一列，
+         否則多出來的那條線會沿著這一列穿過組內其他節點 */
+      var s=ncSuccs(cur);
+      if(s.length!==1||(succs[cur]||[]).length!==1)break;
+      var nx=s[0];
+      if(unitOf[nx]!==undefined||(preds[nx]||[]).length!==1||nm[nx]._fixed||nm[nx].x<=nm[cur].x)break;
+      u.push(nx);unitOf[nx]=units.length;cur=nx;
+    }
+    units.push(u);
+  });
+
+  /* 3. 佔用區間 */
+  var occ=[];
+  units.forEach(function(u){
+    var xs=[];
+    u.forEach(function(id){
+      xs.push(nm[id].x);
+      (preds[id]||[]).forEach(function(p){xs.push(nm[p].x);});
+      (succs[id]||[]).forEach(function(s){xs.push(nm[s].x);});
+    });
+    var fx=u.filter(function(id){return nm[id]._fixed;});
+    var stems=[];
+    u.forEach(function(id){
+      (preds[id]||[]).concat(succs[id]||[]).forEach(function(nb){if(critSet.has(nb))stems.push(nm[nb].x);});
+    });
+    occ.push({kind:'unit',ids:u,stems:stems,x0:Math.min.apply(null,xs)-R,x1:Math.max.apply(null,xs)+R,fixedY:fx.length?nm[fx[0]].y:null});
+  });
+  var critIdx={};chain.forEach(function(id,i){critIdx[id]=i;});
+  var bridges={};
+  acts.forEach(function(a){
+    var f=+a.f,t=+a.t;
+    if(critIdx[f]===undefined||critIdx[t]===undefined||critIdx[t]===critIdx[f]+1)return;
+    var k=f+'-'+t;if(bridges[k])return;
+    bridges[k]={kind:'bridge',key:k,f:f,t:t,stems:[nm[f].x,nm[t].x],x0:Math.min(nm[f].x,nm[t].x),x1:Math.max(nm[f].x,nm[t].x)};
+    occ.push(bridges[k]);
+  });
+
+  /* 4. 分列：短的先放、越靠近要徑越好；同列區間不重疊（端點剛好相接可以） */
+  var laneOcc={},laneXs={},laneStems={};
+  var STEM_CLEAR=R+(R-8)+6; /* 垂直線最多偏離要徑節點中心 R−8，再加節點半徑 */
+  function sameSideInner(l){var o=[];for(var m=1;m<Math.abs(l);m++)o.push(l<0?-m:m);return o;}
+  function fitsSpan(o,l){return (laneOcc[l]||[]).every(function(q){return o.x1<=q.x0+1||o.x0>=q.x1-1;});}
+  function fits(o,l){
+    if(!fitsSpan(o,l))return false;
+    /* 這組往外列的垂直線，不能穿過內側各列的節點 */
+    var inner=sameSideInner(l);
+    var stemHit=(o.stems||[]).some(function(cx){
+      return inner.some(function(m){return (laneXs[m]||[]).some(function(x){return Math.abs(x-cx)<STEM_CLEAR;});});
+    });
+    if(stemHit)return false;
+    /* 這組的節點，也不能放在其他外列垂直線經過的位置 */
+    if(o.kind==='unit'&&o.ids.some(function(id){
+      return (laneStems[l]||[]).some(function(cx){return Math.abs(nm[id].x-cx)<STEM_CLEAR;});
+    }))return false;
+    return true;
+  }
+  occ.sort(function(a,b){return (a.fixedY!=null?0:1)-(b.fixedY!=null?0:1)||(a.x1-a.x0)-(b.x1-b.x0)||a.x0-b.x0;});
+  occ.forEach(function(o){
+    var lane=null;
+    if(o.fixedY!=null){
+      var bd=Infinity;
+      for(var k=1;k<=30;k++)[-k,k].forEach(function(l){var d=Math.abs(laneYOf(l)-o.fixedY);if(d<bd){bd=d;lane=l;}});
+    }else{
+      /* 跟已放好的相連非要徑節點放同一側（都在要徑上方或都在下方），
+         兩者之間的線就不必穿越要徑 */
+      var pref=-1;
+      if(o.kind==='unit'){
+        var vote=0;
+        o.ids.forEach(function(id){
+          (preds[id]||[]).concat(succs[id]||[]).forEach(function(nb){
+            if(ncSet.has(nb)&&unitOf[nb]!==unitOf[id]&&nm[nb]._laned)vote+=(nm[nb].y<ADM_CY?-1:1);
+          });
+        });
+        if(vote>0)pref=1;
+      }
+      for(var k2=1;k2<=12&&lane===null;k2++){
+        if(fits(o,pref*k2))lane=pref*k2;else if(fits(o,-pref*k2))lane=-pref*k2;
+      }
+      /* 找不到完全乾淨的列（垂直線一定得穿過某個內列節點）：退而求其次，只要求區間不重疊 */
+      for(var k3=1;k3<=60&&lane===null;k3++){
+        if(fitsSpan(o,pref*k3))lane=pref*k3;else if(fitsSpan(o,-pref*k3))lane=-pref*k3;
+      }
+      if(lane===null)lane=pref;
+    }
+    o.lane=lane;o.y=laneYOf(lane);
+    (laneOcc[lane]=laneOcc[lane]||[]).push(o);
+    if(o.kind==='unit')o.ids.forEach(function(id){(laneXs[lane]=laneXs[lane]||[]).push(nm[id].x);});
+    sameSideInner(lane).forEach(function(m){(o.stems||[]).forEach(function(cx){(laneStems[m]=laneStems[m]||[]).push(cx);});});
+    if(o.kind==='unit')o.ids.forEach(function(id){if(!nm[id]._fixed)nm[id].y=o.y;nm[id]._laned=true;});
+  });
+  nonCrit.forEach(function(n){delete n._laned;});
+
+  planAttachments(chain,critIdx,bridges);
+}
+
+/* 每條箭線（以「起點-終點」為鍵，同一對節點的多個作業共用一條）的進出位置 */
+function planAttachments(chain,critIdx,bridges){
+  var plan={},laneYs=[];
+  Object.keys(bridges).forEach(function(k){laneYs.push(bridges[k].y);});
+  var keys={};
+  acts.forEach(function(a){
+    if(!nm[a.f]||!nm[a.t])return;
+    var k=(+a.f)+'-'+(+a.t);
+    if(!keys[k])keys[k]={f:+a.f,t:+a.t};
+  });
+  function onCenter(id){return critIdx[id]!==undefined&&Math.abs(nm[id].y-ADM_CY)<1;}
+  /* 要徑節點上方／下方的進出點：x 方向錯開 */
+  var critSide={};   // id → {top:[], bot:[]}
+  /* 非要徑節點左右兩側的進出點：y 方向錯開 */
+  var ncSide={};     // id → {in:[], out:[]}
+  function push(map,id,side,item){map[id]=map[id]||{};(map[id][side]=map[id][side]||[]).push(item);}
+  Object.keys(keys).forEach(function(k){
+    var e=keys[k],f=e.f,t=e.t;
+    plan[k]={so:0,to:0};
+    if(bridges[k]){
+      plan[k].kind='bridge';plan[k].y=bridges[k].y;
+      var side=bridges[k].y<ADM_CY?'top':'bot',far=Math.abs(bridges[k].y-ADM_CY);
+      push(critSide,f,side,{key:k,end:'so',dir:'out',far:far,other:nm[t].x});
+      push(critSide,t,side,{key:k,end:'to',dir:'in',far:far,other:nm[f].x});
+      return;
+    }
+    if(onCenter(f)&&onCenter(t)){plan[k].kind='center';return;}
+    if(onCenter(f)){
+      plan[k].kind='c2n';
+      push(critSide,f,nm[t].y<ADM_CY?'top':'bot',{key:k,end:'so',dir:'out',far:Math.abs(nm[t].y-ADM_CY),other:nm[t].x});
+      push(ncSide,t,'in',{key:k,end:'to',other:nm[f].x,oy:ADM_CY});
+      return;
+    }
+    if(onCenter(t)){
+      plan[k].kind='n2c';
+      push(ncSide,f,'out',{key:k,end:'so',other:nm[t].x,oy:ADM_CY});
+      push(critSide,t,nm[f].y<ADM_CY?'top':'bot',{key:k,end:'to',dir:'in',far:Math.abs(nm[f].y-ADM_CY),other:nm[f].x});
+      return;
+    }
+    plan[k].kind='n2n';
+    push(ncSide,f,'out',{key:k,end:'so',other:nm[t].x,oy:nm[t].y});
+    push(ncSide,t,'in',{key:k,end:'to',other:nm[f].x,oy:nm[f].y});
+  });
+  function spread(list,maxHalf){
+    var m=list.length;if(!m)return;
+    var step=m>1?Math.min(ATTACH_STEP,2*maxHalf/(m-1)):0;
+    list.forEach(function(it,i){plan[it.key][it.end]=Math.round((i-(m-1)/2)*step);});
+  }
+  /* 要徑節點：左→右依序為「進來的（近列→遠列）」再「出去的（遠列→近列）」，
+     這樣垂直線不會穿過同一側其他線的水平段 */
+  Object.keys(critSide).forEach(function(id){
+    ['top','bot'].forEach(function(side){
+      var L=critSide[id][side]||[];
+      var ins=L.filter(function(x){return x.dir==='in';}).sort(function(a,b){return a.far-b.far||a.other-b.other;});
+      var outs=L.filter(function(x){return x.dir==='out';}).sort(function(a,b){return b.far-a.far||a.other-b.other;});
+      spread(ins.concat(outs),R-8);
+    });
+  });
+  /* 非要徑節點：越外側（離要徑越遠）的列，來源越左／目標越右的線放越外側 */
+  Object.keys(ncSide).forEach(function(id){
+    var up=nm[id].y<ADM_CY;
+    ['in','out'].forEach(function(side){
+      var L=(ncSide[id][side]||[]).slice();
+      L.sort(function(a,b){
+        /* 先依另一端的高度（往上的線放上面），再依水平距離（遠的放外側） */
+        if(Math.abs(a.oy-b.oy)>1)return a.oy-b.oy;
+        var da=Math.abs(a.other-nm[id].x),db=Math.abs(b.other-nm[id].x);
+        return up?(db-da):(da-db);
+      });
+      spread(L,R-10);
+      /* 從其他列進來的線要在節點左側轉折：每條用不同的轉折 x，來源離越遠的
+         越靠近節點，彼此不共線也不交叉 */
+      if(side==='in'){
+        var y0=nm[id].y;
+        [L.filter(function(it){return it.oy<y0-1&&plan[it.key].kind==='n2n';}),
+         L.filter(function(it){return it.oy>y0+1&&plan[it.key].kind==='n2n';})].forEach(function(J){
+          J.sort(function(a,b){return Math.abs(b.oy-y0)-Math.abs(a.oy-y0);});
+          J.forEach(function(it,i){plan[it.key].jog=18+i*ATTACH_STEP;});
+        });
+      }
+    });
+  });
+  window._routePlan=plan;
+  window._laneYs=laneYs;
+  placeJogs(plan);
+}
+
+/* 非要徑→非要徑且不同列的線，要在目標節點左側找一個 x 轉折往上／下。從靠近
+   目標節點的位置往左一格一格試，挑第一個「垂直段不碰到任何節點（端點除外）、
+   不跟其他垂直段共線」的位置。其他種類的垂直段（要徑節點上下進出、繞行列）
+   先登記成障礙。 */
+function placeJogs(plan){
+  var verts=[];
+  Object.keys(plan).forEach(function(k){
+    var p=plan[k];if(p.kind==='n2n'||p.kind==='center')return;
+    var e=k.split('-').map(Number);
+    var pts=routeFor(e[0],e[1],0,0);
+    for(var i=0;i<pts.length-1;i++)if(Math.abs(pts[i].x-pts[i+1].x)<0.5)
+      verts.push({x:pts[i].x,y0:Math.min(pts[i].y,pts[i+1].y),y1:Math.max(pts[i].y,pts[i+1].y)});
+  });
+  var ns=Object.values(nm);
+  var jogKeys=Object.keys(plan).filter(function(k){
+    var e=k.split('-').map(Number);
+    return plan[k].kind==='n2n'&&Math.abs((nm[e[0]].y+plan[k].so)-(nm[e[1]].y+plan[k].to))>=0.5;
+  }).sort(function(a,b){return (plan[a].jog||22)-(plan[b].jog||22);});
+  jogKeys.forEach(function(k){
+    var e=k.split('-').map(Number),src=nm[e[0]],dst=nm[e[1]],p=plan[k];
+    var ya=src.y+p.so,yb=dst.y+p.to,y0=Math.min(ya,yb),y1=Math.max(ya,yb);
+    var xmin=src.x+R+8,start=dst.x-R-(p.jog||22);
+    var best=null,fallback=null,fbScore=-Infinity;
+    /* 先從偏好位置往左找，再往右找到目標節點旁為止 */
+    var xmax=dst.x-R-8,tries=[];
+    for(var xa=start;xa>=xmin;xa-=6)tries.push(xa);
+    for(var xb=start+6;xb<=xmax;xb+=6)tries.push(xb);
+    for(var ti=0;ti<tries.length&&best===null;ti++){
+      var xm=tries[ti];
+      /* 與垂直段範圍內各節點的最小水平距離（越大越不會碰到） */
+      var clear=Infinity;
+      ns.forEach(function(n){
+        if(n.id===e[0]||n.id===e[1])return;
+        if(n.y+R+5>y0&&n.y-R-5<y1)clear=Math.min(clear,Math.abs(n.x-xm));
+      });
+      var hitVert=verts.some(function(v){return Math.abs(v.x-xm)<6&&v.y0<y1-1&&v.y1>y0+1;});
+      if(clear>=R+5&&!hitVert){best=xm;break;}
+      var score=(hitVert?-1000:0)+Math.min(clear,R+5);
+      if(score>fbScore){fbScore=score;fallback=xm;}
+    }
+    if(best===null){
+      /* 找不到乾淨的轉折點：改成沿來源那一列走到目標節點正下（上）方，再垂直
+         進入目標節點。目標節點本身離要徑節點有足夠距離，所以這條垂直線不會
+         穿過要徑節點；仍會碰到其他節點時才用最佳的轉折點。 */
+      var ve0=Math.min(ya,dst.y),ve1=Math.max(ya,dst.y);
+      var vClear=Infinity;
+      ns.forEach(function(n){
+        if(n.id===e[0]||n.id===e[1])return;
+        if(n.y+R+5>ve0&&n.y-R-5<ve1)vClear=Math.min(vClear,Math.abs(n.x-dst.x));
+      });
+      var vHit=verts.some(function(v){return Math.abs(v.x-dst.x)<6&&v.y0<ve1-1&&v.y1>ve0+1;});
+      if(vClear>=R+5&&!vHit){
+        p.enterV=true;
+        verts.push({x:dst.x,y0:ve0,y1:ve1});
+        return;
+      }
+      /* 再試：從來源節點正上（下）方垂直離開，沿目標那一列走進目標節點 */
+      var vx0=Math.min(src.y,yb),vx1=Math.max(src.y,yb),xClear=Infinity;
+      ns.forEach(function(n){
+        if(n.id===e[0]||n.id===e[1])return;
+        if(n.y+R+5>vx0&&n.y-R-5<vx1)xClear=Math.min(xClear,Math.abs(n.x-src.x));
+      });
+      var xHit=verts.some(function(v){return Math.abs(v.x-src.x)<6&&v.y0<vx1-1&&v.y1>vx0+1;});
+      if(xClear>=R+5&&!xHit){
+        p.exitV=true;
+        verts.push({x:src.x,y0:vx0,y1:vx1});
+        return;
+      }
+      best=(fallback!=null)?fallback:Math.max(xmin,start);
+    }
+    p.jx=best;
+    verts.push({x:best,y0:y0,y1:y1});
+  });
+}
+
+function circleDX(o){return Math.sqrt(Math.max(0,R*R-o*o));}
+function routeFor(f,t,off,yBase){
+  var src=nm[f],dst=nm[t];
+  var p=(window._routePlan||{})[f+'-'+t];
+  if(!p)return routePath(src,dst,off,yBase);
+  off=off||0;
+  var sx=src.x,sy=src.y+yBase,dx=dst.x,dy=dst.y+yBase;
+  if(p.kind==='center')return [{x:sx+R,y:sy+off},{x:dx-R,y:dy+off}];
+  if(p.kind==='bridge'){
+    var ly=p.y+yBase+off,up=p.y<ADM_CY?-1:1,xs=sx+p.so,xd=dx+p.to;
+    return [{x:xs,y:sy+up*circleDX(p.so)},{x:xs,y:ly},{x:xd,y:ly},{x:xd,y:dy+up*circleDX(p.to)}];
+  }
+  if(p.kind==='c2n'){
+    var dir=dy<sy?-1:1,xv=sx+p.so+off,yh=dy+p.to;
+    return [{x:xv,y:sy+dir*circleDX(p.so)},{x:xv,y:yh},{x:dx-circleDX(p.to),y:yh}];
+  }
+  if(p.kind==='n2c'){
+    var dir2=sy<dy?-1:1,yh2=sy+p.so,xv2=dx+p.to+off;
+    return [{x:sx+circleDX(p.so),y:yh2},{x:xv2,y:yh2},{x:xv2,y:dy+dir2*circleDX(p.to)}];
+  }
+  /* 非要徑 → 非要徑 */
+  var y1=sy+p.so+off,y2=dy+p.to+off,x1=sx+circleDX(p.so),x2=dx-circleDX(p.to);
+  if(p.enterV)return [{x:x1,y:y1},{x:dx+off,y:y1},{x:dx+off,y:dy+(y1<dy?-R:R)}];
+  if(p.exitV)return [{x:sx+off,y:sy+(y2<sy?-R:R)},{x:sx+off,y:y2},{x:x2,y:y2}];
+  if(Math.abs(y1-y2)<0.5)return [{x:x1,y:y1},{x:x2,y:y2}];
+  var xm=(p.jx!=null)?p.jx:Math.max(x1+12,x2-(p.jog||22));
+  return [{x:x1,y:y1},{x:xm,y:y1},{x:xm,y:y2},{x:x2,y:y2}];
 }
 
 function bkt(nid,critSet,dir,chain){
@@ -698,7 +1146,7 @@ function dayToDateLabel(t){
 /* 視窗大小改變時，「適合畫面寬度」模式重新排版（拖曳固定過的節點不動） */
 var _fitResizeTimer=null;
 window.addEventListener('resize',function(){
-  if(zoomMode()!=='fit'||!_chain||!_chain.length)return;
+  if(zoomMode()==='clear'||!_chain||!_chain.length)return;
   clearTimeout(_fitResizeTimer);
   _fitResizeTimer=setTimeout(function(){autoLayout(_chain);redraw();},200);
 });
@@ -914,7 +1362,17 @@ function redraw(){
   W=Math.max(W,800);
 
   /* Section Y positions */
-  var admMinY=ADM_CY-VOFF-R-70,admMaxY=ADM_CY+VOFF+R+40;
+  var nodesArr=Object.values(nm),dxMin=Infinity;
+  for(var i=0;i<nodesArr.length;i++)for(var j=i+1;j<nodesArr.length;j++){
+    if(Math.abs(nodesArr[i].y-nodesArr[j].y)<2*R){
+      var dd=Math.abs(nodesArr[i].x-nodesArr[j].x);if(dd>0&&dd<dxMin)dxMin=dd;
+    }
+  }
+  window._minNodeDx=dxMin;
+  var yLo=ADM_CY-VOFF,yHi=ADM_CY+VOFF;
+  Object.values(nm).forEach(function(n){if(n.y<yLo)yLo=n.y;if(n.y>yHi)yHi=n.y;});
+  (window._laneYs||[]).forEach(function(y){if(y-R<yLo)yLo=y-R;if(y+R>yHi)yHi=y+R;});
+  var admMinY=yLo-R-70,admMaxY=yHi+R+40;
   var admTop=Math.max(20,-admMinY+20);           // shifts everything down if branches go too high
   var admBot=admTop+(admMaxY-admMinY);
   var gTop=admBot+GAP+16;
@@ -991,6 +1449,8 @@ function drawAdm(ctx,W,yBase,admTop,admBot){
     ctx.restore();
   }
 
+  window._admLabelQueue=[];
+  window._admObstacles=[];
   var mode=(document.getElementById('adm-mode')||{}).value||'merge';
   if(mode==='merge'){
     /* 同節點對合併：一條線 + 清單標註（先畫線、後統一放置標註框避免重疊） */
@@ -1008,7 +1468,7 @@ function drawAdm(ctx,W,yBase,admTop,admBot){
         if(spec)boxes.push(spec);
       }
     });
-    placeGroupBoxes(ctx,boxes,W,admTop,admBot);
+    placeGroupBoxes(ctx,boxes,W,admTop,admBot,yBase);
   }else{
     /* 分離線條（扇形偏移） */
     var pc={};
@@ -1022,8 +1482,146 @@ function drawAdm(ctx,W,yBase,admTop,admBot){
     acts.forEach(function(a){drawArrow(ctx,a,yBase);});
   }
   Object.values(nm).forEach(function(n){drawNode(ctx,n,yBase);});
+  placeArrowLabels(ctx,yBase,admTop,admBot,W);
 }
 
+/* ════════════════════════════════════════════════════════
+   箭線標註（作業名稱／工期）：避開節點、合併標註框與彼此
+   ════════════════════════════════════════════════════════
+   每條箭線兩個標註（名稱在一側、工期在另一側）。依序試：預設位置 →
+   離線更遠 → 換到另一側 → 沿線段前後移動；都會撞到時縮小字級再試；
+   仍放不下就把名稱截短（…）放在預設位置。要徑箭線優先放置。 */
+function labelBox(ctx,t,x,y,fontPx){
+  ctx.font=fontPx+'px sans-serif';
+  var tm=ctx.getTransform(),sx=Math.hypot(tm.a,tm.b),sy=Math.hypot(tm.c,tm.d);
+  /* 列印模式字與底板以等比例 PRINT_TEXT_SCALE 繪製（見 drawPill），換回使用者座標：
+     measureText 已被列印流程換算過寬度，但底板左右各 6 的留白也要一起放大 */
+  var pr=(PRINT_TEXT_SCALE>0&&Math.abs(sx-sy)>1e-3);
+  var w=ctx.measureText(t).width+12*(pr?PRINT_TEXT_SCALE/sx:1);
+  var h=(fontPx+7)*(pr?PRINT_TEXT_SCALE/sy:1);
+  return {x0:x-w/2,x1:x+w/2,y0:y-h/2,y1:y+h/2};
+}
+function boxesHit(r,list){
+  for(var i=0;i<list.length;i++){var q=list[i];if(r.x0<q.x1&&r.x1>q.x0&&r.y0<q.y1&&r.y1>q.y0)return true;}
+  return false;
+}
+function drawPill(ctx,t,x,y,col,fontPx){
+  ctx.save();
+  ctx.font=fontPx+'px sans-serif';
+  var tm=ctx.getTransform();
+  var tsx=Math.hypot(tm.a,tm.b), tsy=Math.hypot(tm.c,tm.d);
+  if(Math.abs(tsx-tsy)>1e-3&&PRINT_TEXT_SCALE>0){
+    /* print mode: draw the highlight pill and the text together in a
+       local isotropic frame so the pill hugs the (boosted) text instead
+       of being sized/stretched by the page's non-uniform transform. */
+    var dx=tm.a*x+tm.c*y+tm.e, dy=tm.b*x+tm.d*y+tm.f;
+    var u=PRINT_TEXT_SCALE;
+    ctx.setTransform(u,0,0,u,dx,dy);
+    var tw=CanvasRenderingContext2D.prototype.measureText.call(ctx,t).width;
+    var hh=(fontPx+7)/2;
+    ctx.fillStyle='rgba(233,229,220,.94)';ctx.fillRect(-tw/2-6,-hh,tw+12,hh*2);
+    ctx.fillStyle=col;ctx.textAlign='center';ctx.textBaseline='middle';
+    CanvasRenderingContext2D.prototype.fillText.call(ctx,t,0,0);
+  }else{
+    var tw2=ctx.measureText(t).width,hh2=(fontPx+7)/2;
+    ctx.fillStyle='rgba(233,229,220,.94)';ctx.fillRect(x-tw2/2-6,y-hh2,tw2+12,hh2*2);
+    ctx.fillStyle=col;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(t,x,y);
+  }
+  ctx.restore();
+}
+function truncateToWidth(ctx,t,maxW,fontPx){
+  ctx.font=fontPx+'px sans-serif';
+  if(ctx.measureText(t).width<=maxW)return t;
+  var s2=t;
+  while(s2.length>1&&ctx.measureText(s2+'…').width>maxW)s2=s2.slice(0,-1);
+  return s2+'…';
+}
+function placeArrowLabels(ctx,yBase,admTop,admBot,W){
+  var q=window._admLabelQueue||[];
+  var placed=(window._admObstacles||[]).slice();
+  var labelsOnly=[];window._admPlacedLabels=labelsOnly; /* 供版面自動檢查使用 */
+  var tm=ctx.getTransform(),tsx=Math.hypot(tm.a,tm.b),tsy=Math.hypot(tm.c,tm.d);
+  var rx=R,ry=R;
+  if(Math.abs(tsx-tsy)>1e-3){var u=printNodeScale(tsx,tsy);rx=R*u/tsx;ry=R*u/tsy;}
+  Object.values(nm).forEach(function(n){
+    var cx=n.x,cy=n.y+yBase;
+    placed.push({x0:cx-rx-4,x1:cx+rx+4,y0:cy-ry-4,y1:cy+ry+4});
+  });
+  /* 所有箭線也當成障礙：標註不要蓋在任何線上 */
+  var seen={};
+  acts.forEach(function(a){
+    var k=(+a.f)+'-'+(+a.t);if(seen[k]||!nm[a.f]||!nm[a.t])return;seen[k]=true;
+    var pts=routeFor(+a.f,+a.t,0,yBase);
+    for(var i=0;i<pts.length-1;i++){
+      var A=pts[i],B=pts[i+1];
+      placed.push({x0:Math.min(A.x,B.x)-2,x1:Math.max(A.x,B.x)+2,y0:Math.min(A.y,B.y)-2,y1:Math.max(A.y,B.y)+2,line:true});
+    }
+  });
+  var yMin=admTop+30,yMax=admBot-4;
+  /* 列印時字會被放大到約 14pt×(字級/9)，A3 網狀圖上太大；列印改用較小的字級階梯 */
+  var isPrint=PRINT_TEXT_SCALE>0&&Math.abs(tsx-tsy)>1e-3;
+  var FONTS=isPrint?[9,8,7,6.5]:[13,11.5,10.5,9];
+  /* 要徑優先；同類中線段短的先放（可選位置少） */
+  q.sort(function(a,b){return (b.crit-a.crit)||(a.len-b.len)||(a.mx-b.mx);});
+  q.forEach(function(L){
+    /* 候選錨點：每條線段（長的優先）上的幾個比例位置 */
+    var segs=[];
+    for(var i=0;i<(L.pts||[]).length-1;i++){
+      var A=L.pts[i],B=L.pts[i+1],dx=B.x-A.x,dy=B.y-A.y,len=Math.hypot(dx,dy);
+      if(len>=16)segs.push({A:A,dx:dx,dy:dy,len:len,nx:dx/len,ny:dy/len});
+    }
+    if(!segs.length)segs.push({A:{x:L.mx,y:L.my},dx:0,dy:0,len:0,nx:L.nx,ny:L.ny});
+    segs.sort(function(a,b){return b.len-a.len;});
+    segs=segs.slice(0,3);
+    var TS=[0.5,0.35,0.65,0.2,0.8],GAPS=[3,10,20,34,50];
+    function tryPlace(text,side){
+      if(!text)return;
+      var allowLines=false;
+      function attempt(t,fp){
+        var base=labelBox(ctx,t,0,0,fp),hw=(base.x1-base.x0)/2,hh=(base.y1-base.y0)/2;
+        for(var si=0;si<segs.length;si++){
+          var S=segs[si],px=-S.ny,py=S.nx;
+          /* 標註中心離線的距離＝標註在法向量方向的半寬（或半高）＋間隙 */
+          var ext=Math.abs(px)*hw+Math.abs(py)*hh;
+          for(var sd=0;sd<2;sd++){
+            var sgn=sd===0?side:-side;
+            for(var gi=0;gi<GAPS.length;gi++)for(var ti=0;ti<TS.length;ti++){
+              var ax=S.A.x+S.dx*TS[ti],ay=S.A.y+S.dy*TS[ti];
+              var x=ax+px*(ext+GAPS[gi])*sgn,y=ay+py*(ext+GAPS[gi])*sgn;
+              var r={x0:x-hw,x1:x+hw,y0:y-hh,y1:y+hh};
+              if(r.y0<yMin||r.y1>yMax||r.x0<ML-40||r.x1>W-4)continue;
+              if(!boxesHit(r,allowLines?placed.filter(function(o){return !o.line;}):placed)){placed.push(r);labelsOnly.push({x0:r.x0,x1:r.x1,y0:r.y0,y1:r.y1,trunc:t!==text});drawPill(ctx,t,x,y,L.col,fp);return true;}
+            }
+          }
+        }
+        return false;
+      }
+      for(var fi=0;fi<FONTS.length;fi++)if(attempt(text,FONTS[fi]))return;
+      /* 找不到不壓線的位置：允許壓在線上（標註有底色，線會被蓋住一小段），
+         但仍不可蓋到節點或其他標註 */
+      allowLines=true;
+      for(var fj=0;fj<FONTS.length;fj++)if(attempt(text,FONTS[fj]))return;
+      /* 全部會撞：截短到線段長度內再找一次位置；仍不行才放在預設位置 */
+      var fp2=FONTS[FONTS.length-1],maxW=Math.max(36,segs[0].len*0.85);
+      var t2=truncateToWidth(ctx,text,maxW,fp2);
+      if(t2!==text&&attempt(t2,fp2))return;
+      var S0=segs[0],x2=S0.A.x+S0.dx*0.5-S0.ny*22*side,y2=S0.A.y+S0.dy*0.5+S0.nx*22*side;
+      var rb=labelBox(ctx,t2,x2,y2,fp2);placed.push(rb);labelsOnly.push({x0:rb.x0,x1:rb.x1,y0:rb.y0,y1:rb.y1,trunc:true,forced:true});
+      drawPill(ctx,t2,x2,y2,L.col,fp2);
+    }
+    tryPlace(L.name,1);
+    tryPlace(L.dur,-1);
+  });
+}
+
+/* 列印時（非等比例縮放）節點與小圓點的繪製比例：原本是 min(sx,sy)×PRINT_ENLARGE，
+   節點一密就會互相重疊；再以「最近兩個相鄰節點的水平距離」設上限。 */
+function printNodeScale(sx,sy){
+  var u=Math.min(sx,sy)*PRINT_ENLARGE;
+  var dxMin=window._minNodeDx;
+  if(dxMin&&isFinite(dxMin))u=Math.min(u,0.9*dxMin*sx/(2*R));
+  return u;
+}
 function drawNode(ctx,n,yBase){
   var x=n.x,y=n.y+yBase,r=R;
   var isCrit=n.float===0;
@@ -1040,7 +1638,7 @@ function drawNode(ctx,n,yBase){
   var aniso=Math.abs(sx-sy)>1e-3;
   if(aniso){
     var dx=t.a*x+t.c*y+t.e, dy=t.b*x+t.d*y+t.f;
-    var u=Math.min(sx,sy)*PRINT_ENLARGE;
+    var u=printNodeScale(sx,sy);
     ctx.save();
     ctx.setTransform(u,0,0,u,dx,dy);
     x=0;y=0;
@@ -1110,7 +1708,7 @@ function drawGroupArrowLine(ctx,g,yBase){
   var allDummy=g.every(function(a){return a.d===0;});
   var col=allDummy?'#999':(anyCrit?'#c00':'#2255aa');
   var src=nm[a0.f],dst=nm[a0.t];
-  var pts=routePath(src,dst,0,yBase);
+  var pts=routeFor(+a0.f,+a0.t,0,yBase);
   ctx.save();ctx.strokeStyle=col;ctx.lineWidth=anyCrit?2.6:1.8;ctx.lineJoin='miter';
   if(allDummy)ctx.setLineDash([7,5]);
   ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);
@@ -1155,31 +1753,55 @@ function drawGroupArrowLine(ctx,g,yBase){
 }
 
 /* 統一放置標註框：優先放在線上方，重疊時往下推，並夾在圖區內 */
-function placeGroupBoxes(ctx,boxes,W,admTop,admBot){
-  var placed=[];
+function placeGroupBoxes(ctx,boxes,W,admTop,admBot,yBase){
+  /* 同一對節點多個作業的清單框：在錨點上下不同距離、左右稍微平移的候選位置中，
+     挑第一個不蓋到節點、箭線與其他清單框的；找不到時允許壓線（仍不蓋節點），
+     最後才退回原本的上下堆疊放法 */
+  var placed=[],nodeR=[],lineR=[];
   var yMin=admTop+52,yMax=admBot-10;
+  yBase=yBase||0;
+  Object.values(nm).forEach(function(n){var cx=n.x,cy=n.y+yBase;nodeR.push({x0:cx-R-4,x1:cx+R+4,y0:cy-R-4,y1:cy+R+4});});
+  var seenK={};
+  acts.forEach(function(a){
+    var k=(+a.f)+'-'+(+a.t);if(seenK[k]||!nm[a.f]||!nm[a.t])return;seenK[k]=true;
+    var pts=routeFor(+a.f,+a.t,0,yBase);
+    for(var i=0;i<pts.length-1;i++){var A=pts[i],B=pts[i+1];
+      lineR.push({x0:Math.min(A.x,B.x)-2,x1:Math.max(A.x,B.x)+2,y0:Math.min(A.y,B.y)-2,y1:Math.max(A.y,B.y)+2});}
+  });
+  function hitAny(r,list){for(var i=0;i<list.length;i++){var q=list[i];if(r.x0<q.x1&&r.x1>q.x0&&r.y0<q.y1&&r.y1>q.y0)return true;}return false;}
   boxes.sort(function(a,b){return a.mx-b.mx;});
+  window._admGroupBoxes=[];
   boxes.forEach(function(b){
-    var x=Math.max(ML+8+b.boxW/2,Math.min(W-MR-8-b.boxW/2,b.mx));
-    var y=b.my-b.boxH-16; /* 先試線上方 */
-    if(y<yMin)y=b.my+16;  /* 不行放下方 */
-    function rect(yy){return {x0:x-b.boxW/2,x1:x+b.boxW/2,y0:yy,y1:yy+b.boxH};}
-    var guard=0;
-    while(guard++<60){
-      var r=rect(y),hit=null;
-      for(var i=0;i<placed.length;i++){
-        var q=placed[i];
-        if(r.x0<q.x1&&r.x1>q.x0&&r.y0<q.y1&&r.y1>q.y0){hit=q;break;}
+    function clampX(x){return Math.max(ML+8+b.boxW/2,Math.min(W-MR-8-b.boxW/2,x));}
+    function rectAt(x,yy){return {x0:x-b.boxW/2,x1:x+b.boxW/2,y0:yy,y1:yy+b.boxH};}
+    var cands=[];
+    [12,30,55,85,120,160].forEach(function(g){
+      [0,-0.6,0.6].forEach(function(f){
+        var x=clampX(b.mx+f*b.boxW);
+        cands.push(rectAt(x,b.my-b.boxH-g),rectAt(x,b.my+g));
+      });
+    });
+    cands=cands.filter(function(r){return r.y0>=yMin&&r.y1<=yMax;});
+    var r=null;
+    for(var i=0;i<cands.length&&!r;i++)if(!hitAny(cands[i],placed)&&!hitAny(cands[i],nodeR)&&!hitAny(cands[i],lineR))r=cands[i];
+    for(var j=0;j<cands.length&&!r;j++)if(!hitAny(cands[j],placed)&&!hitAny(cands[j],nodeR))r=cands[j];
+    if(!r){
+      var x=clampX(b.mx);
+      var y=b.my-b.boxH-16;
+      if(y<yMin)y=b.my+16;
+      var guard=0;
+      while(guard++<60){
+        var rr=rectAt(x,y),hit=null;
+        for(var k=0;k<placed.length;k++){var q=placed[k];if(rr.x0<q.x1&&rr.x1>q.x0&&rr.y0<q.y1&&rr.y1>q.y0){hit=q;break;}}
+        if(!hit)break;
+        y=hit.y1+8;
+        if(y+b.boxH>yMax){y=Math.max(yMin,placed.reduce(function(m,q){return Math.min(m,q.y0);},yMax)-b.boxH-8);break;}
       }
-      if(!hit)break;
-      y=hit.y1+8; /* 往下疊 */
-      if(y+b.boxH>yMax){ /* 底了改往上找 */
-        y=Math.max(yMin,placed.reduce(function(m,q){return Math.min(m,q.y0);},yMax)-b.boxH-8);
-        break;
-      }
+      y=Math.max(yMin,Math.min(yMax-b.boxH,y));
+      r=rectAt(x,y);
     }
-    y=Math.max(yMin,Math.min(yMax-b.boxH,y));
-    var r=rect(y);placed.push(r);
+    placed.push(r);window._admGroupBoxes.push(r);
+    if(window._admObstacles)window._admObstacles.push(r);
     /* 背板 */
     ctx.save();
     ctx.fillStyle='rgba(233,229,220,.96)';
@@ -1215,7 +1837,7 @@ function drawArrow(ctx,a,yBase){
   var isDummy=a.d===0;
   var col=isDummy?'#999':(a.crit?'#c00':'#2255aa');
   var lw=a.crit?2.6:1.8;
-  var pts=routePath(src,dst,a._off||0,yBase);
+  var pts=routeFor(+a.f,+a.t,a._off||0,yBase);
   ctx.save();ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.lineJoin='miter';
   if(isDummy)ctx.setLineDash([7,5]);
   ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);
@@ -1235,36 +1857,12 @@ function drawArrow(ctx,a,yBase){
     if(len>bl){bl=len;bs={mx:(pts[i].x+pts[i+1].x)/2,my:(pts[i].y+pts[i+1].y)/2,
       nx:ddx/len,ny:ddy/len};}
   }
-  if(bs){
-    var px=-bs.ny*24,py=bs.nx*24;
-    function lbl(t,x,y){
-      ctx.font='13px sans-serif';
-      var tm=ctx.getTransform();
-      var tsx=Math.hypot(tm.a,tm.b), tsy=Math.hypot(tm.c,tm.d);
-      if(Math.abs(tsx-tsy)>1e-3&&PRINT_TEXT_SCALE>0){
-        /* print mode: draw the highlight pill and the text together in a
-           local isotropic frame so the pill hugs the (boosted) text instead
-           of being sized/stretched by the page's non-uniform transform. */
-        var dx=tm.a*x+tm.c*y+tm.e, dy=tm.b*x+tm.d*y+tm.f;
-        var u=PRINT_TEXT_SCALE;
-        ctx.save();
-        ctx.setTransform(u,0,0,u,dx,dy);
-        var tw=CanvasRenderingContext2D.prototype.measureText.call(ctx,t).width;
-        ctx.fillStyle='rgba(233,229,220,.94)';ctx.fillRect(-tw/2-6,-10,tw+12,20);
-        ctx.fillStyle=col;ctx.textAlign='center';ctx.textBaseline='middle';
-        CanvasRenderingContext2D.prototype.fillText.call(ctx,t,0,0);
-        ctx.restore();
-      }else{
-        var tw2=ctx.measureText(t).width;
-        ctx.fillStyle='rgba(233,229,220,.94)';ctx.fillRect(x-tw2/2-6,y-10,tw2+12,20);
-        ctx.fillStyle=col;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(t,x,y);
-      }
-    }
-    if(a.n&&a.n!=='虛作業')lbl(a.n,bs.mx+px,bs.my+py);
-    if(a.d>0){
-      var ds=a.d+'天'+(a.crit?'':(a.float>0?' 浮'+a.float:''));
-      lbl(ds,bs.mx-px,bs.my-py);
-    }
+  if(bs&&window._admLabelQueue){
+    var ds=a.d>0?a.d+'天'+(a.crit?'':(a.float>0?' 浮'+a.float:'')):'';
+    window._admLabelQueue.push({
+      name:(a.n&&a.n!=='虛作業')?a.n:'', dur:ds, col:col, crit:!!a.crit,
+      mx:bs.mx, my:bs.my, nx:bs.nx, ny:bs.ny, len:bl, pts:pts
+    });
   }
   ctx.restore();
 }
