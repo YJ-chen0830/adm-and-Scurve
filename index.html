@@ -237,6 +237,7 @@ details.proc pre{margin:0;padding:10px 12px 14px;font-family:"Courier New",monos
         <div><label>顯示比例</label>
           <select class="inp" id="zoom-mode" onchange="resetLayout()">
             <option value="fit">適合畫面寬度</option>
+            <option value="even">等距（標註最清楚，時間軸非等比例）</option>
             <option value="clear">清晰（原比例，可橫向捲動）</option>
           </select>
         </div>
@@ -437,6 +438,9 @@ var R     = 36;    // node radius
 var ADM_CY= 200;   // critical-path Y
 var VOFF  = 155;   // branch vertical offset
 var XSTEP = 235;   // min node spacing
+var LANES = [-1,1,-2,2,-3,3];   // 非要徑節點可用的列（負＝要徑上方）
+var LANE_STEP = 120;             // 第 2、3 列再往外推的距離
+var LANE_MIN_SEP = 2*36+90;      // 同一列兩節點至少相距（兩個半徑＋標註空間）
 var FIT_MIN_GAP = 2*36+28; // 「適合畫面寬度」時相鄰要徑節點最小間距（兩個半徑 + 留白）
 var GRH   = 30;    // gantt row height
 var SC_H  = 215;   // s-curve height (excl. time axis)
@@ -627,7 +631,17 @@ function autoLayout(chain){
   if(!isFinite(minDayGap)||minDayGap<=0)minDayGap=1;
   var pxPerDay=Math.max(minGap/minDayGap,(n*XSTEP)/totalDur);
 
-  if(zoomMode()==='fit'){
+  if(zoomMode()==='even'){
+    /* 等距：要徑節點平均分配可見寬度，每條要徑箭線的標註空間相同。時間軸
+       在各要徑節點處標示天數／日期，桿狀圖與 S 曲線經 timeToX 逐段對齊。 */
+    var wrapE=document.getElementById('cv-wrap');
+    var availE=Math.max(600,(wrapE?wrapE.clientWidth:1000)-4);
+    var stepE=Math.max(FIT_MIN_GAP,(availE-ML-MR-R-60)/Math.max(1,n-1));
+    chain.forEach(function(id,i){
+      if(!nm[id]._fixed){nm[id].x=Math.round(ML+i*stepE);nm[id].y=ADM_CY;}
+      nm[id]._crit=true;
+    });
+  }else if(zoomMode()==='fit'){
     /* 適合畫面寬度：整個工期攤在目前可見寬度內，時間軸照比例；只保證相鄰
        要徑節點的圓圈不重疊（FIT_MIN_GAP），擠不下時才超出畫面寬度。
        時間→X 是逐段線性插值（timeToX），所以桿狀圖與 S 曲線會跟著對齊。 */
@@ -650,14 +664,35 @@ function autoLayout(chain){
   });
   }
 
-  var tog=true;
-  Object.values(nm).filter(function(n){return!n._crit;}).forEach(function(n){
+  /* 非要徑節點分「列」擺放：原本只在要徑上下各一列交替，分支一多就疊在
+     同一列。改為依 x 由左到右，放進第一個「左右距離夠」的列（上1、下1、
+     上2、下2…），都不夠時放進最寬鬆的那一列。拖曳固定過的節點不動，
+     但會佔住它所在的列。 */
+  var nonCrit=Object.values(nm).filter(function(n){return!n._crit;});
+  nonCrit.forEach(function(n){
     if(n._fixed)return;
     var px=bkt(n.id,critSet,'pred',chain);
     var sx=bkt(n.id,critSet,'succ',chain);
     n.x=Math.round((px+sx)/2);
-    n.y=tog?ADM_CY-VOFF:ADM_CY+VOFF;
-    tog=!tog;
+  });
+  var laneNodes={};
+  function laneY(l){return ADM_CY+(l<0?-1:1)*(VOFF+(Math.abs(l)-1)*LANE_STEP);}
+  nonCrit.filter(function(n){return n._fixed;}).forEach(function(n){
+    var best=LANES[0],bd=Infinity;
+    LANES.forEach(function(l){var d=Math.abs(laneY(l)-n.y);if(d<bd){bd=d;best=l;}});
+    (laneNodes[best]=laneNodes[best]||[]).push(n.x);
+  });
+  nonCrit.filter(function(n){return !n._fixed;}).sort(function(a,b){return a.x-b.x;}).forEach(function(n){
+    var pick=null,bestGap=-1,bestLane=LANES[0];
+    for(var i=0;i<LANES.length;i++){
+      var xs=laneNodes[LANES[i]]||[];
+      var gap=xs.reduce(function(m,x){return Math.min(m,Math.abs(x-n.x));},Infinity);
+      if(gap>=LANE_MIN_SEP){pick=LANES[i];break;}
+      if(gap>bestGap){bestGap=gap;bestLane=LANES[i];}
+    }
+    if(pick===null)pick=bestLane;
+    n.y=laneY(pick);
+    (laneNodes[pick]=laneNodes[pick]||[]).push(n.x);
   });
 
   document.getElementById('adm-info').textContent=
@@ -698,7 +733,7 @@ function dayToDateLabel(t){
 /* 視窗大小改變時，「適合畫面寬度」模式重新排版（拖曳固定過的節點不動） */
 var _fitResizeTimer=null;
 window.addEventListener('resize',function(){
-  if(zoomMode()!=='fit'||!_chain||!_chain.length)return;
+  if(zoomMode()==='clear'||!_chain||!_chain.length)return;
   clearTimeout(_fitResizeTimer);
   _fitResizeTimer=setTimeout(function(){autoLayout(_chain);redraw();},200);
 });
@@ -914,7 +949,16 @@ function redraw(){
   W=Math.max(W,800);
 
   /* Section Y positions */
-  var admMinY=ADM_CY-VOFF-R-70,admMaxY=ADM_CY+VOFF+R+40;
+  var nodesArr=Object.values(nm),dxMin=Infinity;
+  for(var i=0;i<nodesArr.length;i++)for(var j=i+1;j<nodesArr.length;j++){
+    if(Math.abs(nodesArr[i].y-nodesArr[j].y)<2*R){
+      var dd=Math.abs(nodesArr[i].x-nodesArr[j].x);if(dd>0&&dd<dxMin)dxMin=dd;
+    }
+  }
+  window._minNodeDx=dxMin;
+  var yLo=ADM_CY-VOFF,yHi=ADM_CY+VOFF;
+  Object.values(nm).forEach(function(n){if(n.y<yLo)yLo=n.y;if(n.y>yHi)yHi=n.y;});
+  var admMinY=yLo-R-70,admMaxY=yHi+R+40;
   var admTop=Math.max(20,-admMinY+20);           // shifts everything down if branches go too high
   var admBot=admTop+(admMaxY-admMinY);
   var gTop=admBot+GAP+16;
@@ -991,6 +1035,8 @@ function drawAdm(ctx,W,yBase,admTop,admBot){
     ctx.restore();
   }
 
+  window._admLabelQueue=[];
+  window._admObstacles=[];
   var mode=(document.getElementById('adm-mode')||{}).value||'merge';
   if(mode==='merge'){
     /* 同節點對合併：一條線 + 清單標註（先畫線、後統一放置標註框避免重疊） */
@@ -1022,8 +1068,115 @@ function drawAdm(ctx,W,yBase,admTop,admBot){
     acts.forEach(function(a){drawArrow(ctx,a,yBase);});
   }
   Object.values(nm).forEach(function(n){drawNode(ctx,n,yBase);});
+  placeArrowLabels(ctx,yBase,admTop,admBot,W);
 }
 
+/* ════════════════════════════════════════════════════════
+   箭線標註（作業名稱／工期）：避開節點、合併標註框與彼此
+   ════════════════════════════════════════════════════════
+   每條箭線兩個標註（名稱在一側、工期在另一側）。依序試：預設位置 →
+   離線更遠 → 換到另一側 → 沿線段前後移動；都會撞到時縮小字級再試；
+   仍放不下就把名稱截短（…）放在預設位置。要徑箭線優先放置。 */
+function labelBox(ctx,t,x,y,fontPx){
+  ctx.font=fontPx+'px sans-serif';
+  var tm=ctx.getTransform(),sx=Math.hypot(tm.a,tm.b),sy=Math.hypot(tm.c,tm.d);
+  /* 列印模式字與底板以等比例 PRINT_TEXT_SCALE 繪製（見 drawPill），換回使用者座標：
+     measureText 已被列印流程換算過寬度，但底板左右各 6 的留白也要一起放大 */
+  var pr=(PRINT_TEXT_SCALE>0&&Math.abs(sx-sy)>1e-3);
+  var w=ctx.measureText(t).width+12*(pr?PRINT_TEXT_SCALE/sx:1);
+  var h=(fontPx+7)*(pr?PRINT_TEXT_SCALE/sy:1);
+  return {x0:x-w/2,x1:x+w/2,y0:y-h/2,y1:y+h/2};
+}
+function boxesHit(r,list){
+  for(var i=0;i<list.length;i++){var q=list[i];if(r.x0<q.x1&&r.x1>q.x0&&r.y0<q.y1&&r.y1>q.y0)return true;}
+  return false;
+}
+function drawPill(ctx,t,x,y,col,fontPx){
+  ctx.save();
+  ctx.font=fontPx+'px sans-serif';
+  var tm=ctx.getTransform();
+  var tsx=Math.hypot(tm.a,tm.b), tsy=Math.hypot(tm.c,tm.d);
+  if(Math.abs(tsx-tsy)>1e-3&&PRINT_TEXT_SCALE>0){
+    /* print mode: draw the highlight pill and the text together in a
+       local isotropic frame so the pill hugs the (boosted) text instead
+       of being sized/stretched by the page's non-uniform transform. */
+    var dx=tm.a*x+tm.c*y+tm.e, dy=tm.b*x+tm.d*y+tm.f;
+    var u=PRINT_TEXT_SCALE;
+    ctx.setTransform(u,0,0,u,dx,dy);
+    var tw=CanvasRenderingContext2D.prototype.measureText.call(ctx,t).width;
+    var hh=(fontPx+7)/2;
+    ctx.fillStyle='rgba(233,229,220,.94)';ctx.fillRect(-tw/2-6,-hh,tw+12,hh*2);
+    ctx.fillStyle=col;ctx.textAlign='center';ctx.textBaseline='middle';
+    CanvasRenderingContext2D.prototype.fillText.call(ctx,t,0,0);
+  }else{
+    var tw2=ctx.measureText(t).width,hh2=(fontPx+7)/2;
+    ctx.fillStyle='rgba(233,229,220,.94)';ctx.fillRect(x-tw2/2-6,y-hh2,tw2+12,hh2*2);
+    ctx.fillStyle=col;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(t,x,y);
+  }
+  ctx.restore();
+}
+function truncateToWidth(ctx,t,maxW,fontPx){
+  ctx.font=fontPx+'px sans-serif';
+  if(ctx.measureText(t).width<=maxW)return t;
+  var s2=t;
+  while(s2.length>1&&ctx.measureText(s2+'…').width>maxW)s2=s2.slice(0,-1);
+  return s2+'…';
+}
+function placeArrowLabels(ctx,yBase,admTop,admBot,W){
+  var q=window._admLabelQueue||[];
+  var placed=(window._admObstacles||[]).slice();
+  var tm=ctx.getTransform(),tsx=Math.hypot(tm.a,tm.b),tsy=Math.hypot(tm.c,tm.d);
+  var rx=R,ry=R;
+  if(Math.abs(tsx-tsy)>1e-3){var u=printNodeScale(tsx,tsy);rx=R*u/tsx;ry=R*u/tsy;}
+  Object.values(nm).forEach(function(n){
+    var cx=n.x,cy=n.y+yBase;
+    placed.push({x0:cx-rx-4,x1:cx+rx+4,y0:cy-ry-4,y1:cy+ry+4});
+  });
+  var yMin=admTop+30,yMax=admBot-4;
+  /* 列印時字會被放大到約 14pt×(字級/9)，A3 網狀圖上太大；列印改用較小的字級階梯 */
+  var isPrint=PRINT_TEXT_SCALE>0&&Math.abs(tsx-tsy)>1e-3;
+  var FONTS=isPrint?[9,8,7,6.5]:[13,11.5,10.5,9];
+  q.sort(function(a,b){return (b.crit-a.crit)||(a.mx-b.mx);});
+  q.forEach(function(L){
+    var px=-L.ny,py=L.nx; /* 線段法向量 */
+    var horiz=Math.abs(L.ny)<0.2;
+    var shifts=horiz?[0,-0.22,0.22,-0.38,0.38]:[0];
+    function tryPlace(text,side,fallbackDist){
+      if(!text)return;
+      var dists=[22,38,54];
+      var sides=[side,-side];
+      function attempt(t,fp){
+        for(var si=0;si<sides.length;si++)for(var di=0;di<dists.length;di++)for(var hi=0;hi<shifts.length;hi++){
+          var x=L.mx+L.nx*shifts[hi]*L.len+px*dists[di]*sides[si];
+          var y=L.my+L.ny*shifts[hi]*L.len+py*dists[di]*sides[si];
+          var r=labelBox(ctx,t,x,y,fp);
+          if(r.y0<yMin||r.y1>yMax||r.x0<ML-40||r.x1>W-4)continue;
+          if(!boxesHit(r,placed)){placed.push(r);drawPill(ctx,t,x,y,L.col,fp);return true;}
+        }
+        return false;
+      }
+      for(var fi=0;fi<FONTS.length;fi++)if(attempt(text,FONTS[fi]))return;
+      /* 全部會撞：截短到線段長度內再找一次位置；仍不行才放在預設位置 */
+      var fp2=FONTS[FONTS.length-1],maxW=Math.max(36,L.len*0.85);
+      var t2=truncateToWidth(ctx,text,maxW,fp2);
+      if(t2!==text&&attempt(t2,fp2))return;
+      var x2=L.mx+px*fallbackDist*side,y2=L.my+py*fallbackDist*side;
+      placed.push(labelBox(ctx,t2,x2,y2,fp2));
+      drawPill(ctx,t2,x2,y2,L.col,fp2);
+    }
+    tryPlace(L.name,1,22);
+    tryPlace(L.dur,-1,22);
+  });
+}
+
+/* 列印時（非等比例縮放）節點與小圓點的繪製比例：原本是 min(sx,sy)×PRINT_ENLARGE，
+   節點一密就會互相重疊；再以「最近兩個相鄰節點的水平距離」設上限。 */
+function printNodeScale(sx,sy){
+  var u=Math.min(sx,sy)*PRINT_ENLARGE;
+  var dxMin=window._minNodeDx;
+  if(dxMin&&isFinite(dxMin))u=Math.min(u,0.9*dxMin*sx/(2*R));
+  return u;
+}
 function drawNode(ctx,n,yBase){
   var x=n.x,y=n.y+yBase,r=R;
   var isCrit=n.float===0;
@@ -1040,7 +1193,7 @@ function drawNode(ctx,n,yBase){
   var aniso=Math.abs(sx-sy)>1e-3;
   if(aniso){
     var dx=t.a*x+t.c*y+t.e, dy=t.b*x+t.d*y+t.f;
-    var u=Math.min(sx,sy)*PRINT_ENLARGE;
+    var u=printNodeScale(sx,sy);
     ctx.save();
     ctx.setTransform(u,0,0,u,dx,dy);
     x=0;y=0;
@@ -1180,6 +1333,7 @@ function placeGroupBoxes(ctx,boxes,W,admTop,admBot){
     }
     y=Math.max(yMin,Math.min(yMax-b.boxH,y));
     var r=rect(y);placed.push(r);
+    if(window._admObstacles)window._admObstacles.push(r);
     /* 背板 */
     ctx.save();
     ctx.fillStyle='rgba(233,229,220,.96)';
@@ -1235,36 +1389,12 @@ function drawArrow(ctx,a,yBase){
     if(len>bl){bl=len;bs={mx:(pts[i].x+pts[i+1].x)/2,my:(pts[i].y+pts[i+1].y)/2,
       nx:ddx/len,ny:ddy/len};}
   }
-  if(bs){
-    var px=-bs.ny*24,py=bs.nx*24;
-    function lbl(t,x,y){
-      ctx.font='13px sans-serif';
-      var tm=ctx.getTransform();
-      var tsx=Math.hypot(tm.a,tm.b), tsy=Math.hypot(tm.c,tm.d);
-      if(Math.abs(tsx-tsy)>1e-3&&PRINT_TEXT_SCALE>0){
-        /* print mode: draw the highlight pill and the text together in a
-           local isotropic frame so the pill hugs the (boosted) text instead
-           of being sized/stretched by the page's non-uniform transform. */
-        var dx=tm.a*x+tm.c*y+tm.e, dy=tm.b*x+tm.d*y+tm.f;
-        var u=PRINT_TEXT_SCALE;
-        ctx.save();
-        ctx.setTransform(u,0,0,u,dx,dy);
-        var tw=CanvasRenderingContext2D.prototype.measureText.call(ctx,t).width;
-        ctx.fillStyle='rgba(233,229,220,.94)';ctx.fillRect(-tw/2-6,-10,tw+12,20);
-        ctx.fillStyle=col;ctx.textAlign='center';ctx.textBaseline='middle';
-        CanvasRenderingContext2D.prototype.fillText.call(ctx,t,0,0);
-        ctx.restore();
-      }else{
-        var tw2=ctx.measureText(t).width;
-        ctx.fillStyle='rgba(233,229,220,.94)';ctx.fillRect(x-tw2/2-6,y-10,tw2+12,20);
-        ctx.fillStyle=col;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(t,x,y);
-      }
-    }
-    if(a.n&&a.n!=='虛作業')lbl(a.n,bs.mx+px,bs.my+py);
-    if(a.d>0){
-      var ds=a.d+'天'+(a.crit?'':(a.float>0?' 浮'+a.float:''));
-      lbl(ds,bs.mx-px,bs.my-py);
-    }
+  if(bs&&window._admLabelQueue){
+    var ds=a.d>0?a.d+'天'+(a.crit?'':(a.float>0?' 浮'+a.float:'')):'';
+    window._admLabelQueue.push({
+      name:(a.n&&a.n!=='虛作業')?a.n:'', dur:ds, col:col, crit:!!a.crit,
+      mx:bs.mx, my:bs.my, nx:bs.nx, ny:bs.ny, len:bl
+    });
   }
   ctx.restore();
 }
